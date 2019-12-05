@@ -12,7 +12,7 @@ topdir="${scriptdir%/*/*/*}"
 . ${topdir}/prplMesh/tools/docker/functions.sh
 
 usage() {
-    echo "usage: $(basename $0) [-hvbt]"
+    echo "usage: $(basename $0) [-hvbtp]"
     echo "  mandatory:"
     echo "      type - image type <runner/builder>"
     echo "  options:"
@@ -20,11 +20,20 @@ usage() {
     echo "      -v|--verbose - verbosity on"
     echo "      -b|--base-image - Base OS image to use (Dockerfile 'FROM')"
     echo "      -n|--native - Use the same base OS image as the running system"
+    echo "      -p|--push - push the generated images to the specified registry"
     echo "      -t|--tag - tag to add to prplmesh-builder and prplmesh-runner images"
 }
 
+push() {
+    if ! docker push "$1" ; then
+	echo "Pushing $1 to the registry failed. Make sure you are
+	logged-in (see docker-login)"
+    fi
+
+}
+
 main() {
-    OPTS=`getopt -o 'hnvb:t:' --long verbose,help,base-image,native,tag -n 'parse-options' -- "$@"`
+    OPTS=`getopt -o 'hnvb:t:p:' --long verbose,help,native,base-image:,tag:,push: -n 'parse-options' -- "$@"`
 
     if [ $? != 0 ] ; then err "Failed parsing options." >&2 ; usage; exit 1 ; fi
 
@@ -40,6 +49,7 @@ main() {
                                         distro="$(echo $NAME | awk '{print tolower($0)}')"
                                         echo "$distro:$VERSION_ID"
                                     ); shift ;;
+	    -p | --push)            PUSH_REG="$2"; shift ; shift ;;
             -t | --tag)             TAG=":$2"; shift ; shift ;;
             -- ) shift; break ;;
             * ) err "unsupported argument $1"; usage; exit 1 ;;
@@ -62,10 +72,24 @@ main() {
         --build-arg image=$IMAGE \
         --tag prplmesh-runner$TAG \
         ${scriptdir}/runner
+
+    if [ ! -z "$PUSH_REG" ] ; then
+	if [ -z "$TAG" ] ; then
+	    echo "Error: cannot push an untagged image."
+	    exit 1
+	fi
+	docker image tag "prplmesh-builder$TAG" "${PUSH_REG}/prplmesh-builder${TAG}"
+	docker image tag "prplmesh-runner$TAG" "${PUSH_REG}/prplmesh-runner${TAG}"
+	push "${PUSH_REG}/prplmesh-builder${TAG}"
+	push "${PUSH_REG}/prplmesh-runner${TAG}"
+    fi
+
 }
 
 VERBOSE=false
 NATIVE=false
 IMAGE="ubuntu:18.04"
+PUSH_REG=""
+TAG=""
 
-main $@
+main "$@"
