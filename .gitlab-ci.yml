@@ -1,4 +1,7 @@
-image: prplfoundationinc/prplmesh-builder:ubuntu-18.04
+default:
+  image:
+    name: prplfoundationinc/prplmesh-builder:ubuntu-18.04
+    entrypoint: [""]
 
 clang-format:
   stage: build
@@ -25,10 +28,6 @@ run-tests:
     - ./image-pull.sh || ./image-build.sh
     - ./run.sh -f -d --entrypoint "$PWD/../../../build/install/bin/tests/tlvf_test"
     - ./tests/test_flows.sh -v
-
-  before_script:
-    # check the availability of some commands:
-    - command >/dev/null -v python3 jq
 
   after_script:
     - tools/docker/stop.sh -k -r
