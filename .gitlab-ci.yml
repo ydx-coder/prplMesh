@@ -3,8 +3,26 @@ default:
     name: prplfoundationinc/prplmesh-builder:ubuntu-18.04
     entrypoint: [""]
 
+variables:
+  BASE_IMAGE: ubuntu:18.04
+  IMAGE_TAG: ubuntu-18.04-$CI_CONCURRENT_PROJECT_ID
+
+build-builder:
+  stage: .pre
+  image: docker:19.03.5-dind
+  services:
+    - docker:19.03.5-dind
+
+  script:
+    docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    tools/docker/image-build.sh \
+      --base-image "$BASE_IMAGE" \
+      --tag "$IMAGE_TAG" \
+      --push "$CI_REGISTRY"
+
 clang-format:
   stage: build
+  image: $IMAGE_TAG
   script:
     # Run clang-format and check there are no modified files by checking git status
     - ./clang-format.sh
