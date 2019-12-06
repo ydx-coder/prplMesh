@@ -16,7 +16,7 @@ usage() {
     echo "  options:"
     echo "      -h|--help - show this help menu"
     echo "      -v|--verbose - verbosity on"
-    echo "      -t|--tag - prplmesh-runner tag to use (default is none)"
+    echo "      -t|--tag - prplmesh-builder tag to use (default is none)"
 }
 
 main() {
@@ -36,14 +36,14 @@ main() {
         esac
     done
 
-    docker image inspect prplmesh-runner$TAG >/dev/null 2>&1 || {
-        [ -n "$TAG" ] && { err "image prplmesh-runner$TAG doesn't exist, aborting"; exit 1; }
-        dbg "Image prplmesh-runner$TAG does not exist, creating..."
+    docker image inspect prplmesh-builder$TAG >/dev/null 2>&1 || {
+        [ -n "$TAG" ] && { err "image prplmesh-builder$TAG doesn't exist, aborting"; exit 1; }
+        dbg "Image prplmesh-builder$TAG does not exist, creating..."
         run ${scriptdir}/image-build.sh
     }
 
     dbg "VERBOSE=${VERBOSE}"
-    dbg "IMAGE=prplmesh-runner$TAG"
+    dbg "IMAGE=prplmesh-builder$TAG"
 
     DOCKEROPTS="-e USER=${SUDO_USER:-${USER}}
                 -e SOURCES_DIR=${sourcesdir}
@@ -53,7 +53,7 @@ main() {
 
     DOCKEROPTS="$DOCKEROPTS --rm"
     
-    run docker container run --entrypoint "${sourcesdir}/clang-format.sh" ${DOCKEROPTS} prplmesh-runner$TAG "$@"
+    run docker container run --entrypoint "${sourcesdir}/clang-format.sh" ${DOCKEROPTS} prplmesh-builder$TAG "$@"
 }
 
 VERBOSE=false

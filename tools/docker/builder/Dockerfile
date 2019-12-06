@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y \
 	python3 \
 	python3-yaml \
 	vim \
+        clang-format \
     && rm -rf /var/lib/apt/lists/*
 
 ENTRYPOINT ["./prplMesh/tools/maptools.py", "build"]
