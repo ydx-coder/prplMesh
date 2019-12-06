@@ -19,7 +19,8 @@ build-builder:
       --base-image "$BASE_IMAGE" \
       --tag "$IMAGE_TAG" \
       --push "$CI_REGISTRY"
-
+  tags:
+    - privileged
 clang-format:
   stage: build
   image: $IMAGE_TAG
@@ -51,4 +52,4 @@ run-tests:
     - tools/docker/stop.sh -k -r
 
   tags:
-    - dockerbuild
+    - privileged
