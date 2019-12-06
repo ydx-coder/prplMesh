@@ -14,8 +14,8 @@ build-builder:
     - docker:19.03.5-dind
 
   script:
-    docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-    tools/docker/image-build.sh \
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - tools/docker/image-build.sh \
       --base-image "$BASE_IMAGE" \
       --tag "$IMAGE_TAG" \
       --push "$CI_REGISTRY"
