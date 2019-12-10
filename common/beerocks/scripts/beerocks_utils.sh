@@ -26,7 +26,7 @@ BEEROCKS_TMP_PATH=/tmp/beerocks
 
 BEEROCKS_LOGS_PATH=/rdklogs/logs
 
-BEEROCKS_ERRORS_FILE=$BEEROCKS_LOGS_PATH/beerocks_errors.log
+BEEROCKS_ERRORS_FILE=$BEEROCKS_LOGS_PATH/beerocks_errors.txt.0
 UGW_DB_BEEROCKS="object:Device.X_INTEL_COM_BEEROCKS"
 UGW_DB_BEEROCKS_WIFI="object:Device.X_INTEL_COM_BEEROCKS.WiFi"
 # Default values
@@ -115,7 +115,7 @@ reset_hostapd()
     for IFACE in $IFACE_LIST ; do
         echo "Restart /tmp/hostapd_$IFACE"
         iwpriv $IFACE sEnableRadio 0
-        /tmp/hostapd_$IFACE /tmp/wlan_wave/hostapd_$IFACE.conf -t 2>&1 > $BEEROCKS_LOGS_PATH/logs/hostapd_$IFACE.log &
+        /tmp/hostapd_$IFACE /tmp/wlan_wave/hostapd_$IFACE.conf -t 2>&1 > $BEEROCKS_LOGS_PATH/hostapd_$IFACE.txt.0 &
     done
 }
 

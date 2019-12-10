@@ -165,8 +165,8 @@ int main(int argc, char *argv[])
 
     //redirect stdout / stderr to file
     // int fd_log_file_std = beerocks::os_utils::redirect_console_std("/dev/null");
-    int fd_log_file_std = beerocks::os_utils::redirect_console_std(beerocks_slave_conf.sLog.path +
-                                                                   base_monitor_name + "_std.log");
+    int fd_log_file_std = beerocks::os_utils::redirect_console_std(
+        beerocks_slave_conf.sLog.path + base_monitor_name + "_std.txt.0");
 
     //kill running monitor and write pid file
     beerocks::os_utils::kill_pid(beerocks_slave_conf.temp_path, base_monitor_name);

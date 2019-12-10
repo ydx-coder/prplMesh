@@ -400,7 +400,7 @@ std::string logging::get_log_filename()
     if (m_log_filename.size() > 0) {
         return m_log_filename;
     }
-    return m_module_name + ".%datetime{%Y%M%d_%H%m%s}.log";
+    return m_module_name + ".txt.0";
 }
 
 std::string logging::get_log_max_size_setting()

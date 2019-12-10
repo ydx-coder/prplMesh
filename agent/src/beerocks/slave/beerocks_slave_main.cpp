@@ -201,7 +201,7 @@ static int system_hang_test(beerocks::config_file::sConfigSlave &beerocks_slave_
 
     //redirect stdout / stderr to file
     //beerocks::os_utils::redirect_console_std("/dev/null");
-    beerocks::os_utils::redirect_console_std(beerocks_slave_conf.sLog.path + name + "_std.log");
+    beerocks::os_utils::redirect_console_std(beerocks_slave_conf.sLog.path + name + "_std.txt.0");
 
     //write pid file
     beerocks::os_utils::write_pid_file(beerocks_slave_conf.temp_path, name);

@@ -78,10 +78,10 @@ do
         PID=`cat $BEEROCKS_TMP_PATH/pid/$PID_FILE`
         if [ -f /proc/$PID/exe ] && [ $NOW_EPOCH -gt $FILE_EPOCH_TIMEOUT ]; then
             echo "$0: WARNING [`date`]: Process $PID_FILE detected system slow down!"
-            echo "$0: WARNING [`date`]: Process $PID_FILE detected system slow down!" >> $BEEROCKS_LOG_PATH/logs/slow_down.log
-            top -b -n1 >> $BEEROCKS_LOG_PATH/logs/slow_down.log
+            echo "$0: WARNING [`date`]: Process $PID_FILE detected system slow down!" >> $BEEROCKS_LOG_PATH/slow_down.txt.0
+            top -b -n1 >> $BEEROCKS_LOG_PATH/slow_down.txt.0
             echo " "
-            df >> $BEEROCKS_LOG_PATH/logs/slow_down.log
+            df >> $BEEROCKS_LOG_PATH/slow_down.txt.0
             echo " "
             PID_STUCK=true
         fi
@@ -90,17 +90,17 @@ do
      [ "$PID_STUCK" == "true" ] && {
         let PID_STUCK_RETRIES++
         echo "$0: WARNING [`date`]: Beerocks processes stuck retry count=$PID_STUCK_RETRIES"
-        echo "$0: WARNING [`date`]: Beerocks processes stuck retry count=$PID_STUCK_RETRIES"  >> $BEEROCKS_LOG_PATH/logs/slow_down.log
-        top -b -n1 >> $BEEROCKS_LOG_PATH/logs/slow_down.log                                                               
-        echo " "                                                                                                     
-        df >> $BEEROCKS_LOG_PATH/logs/slow_down.log
-        echo " "  
+        echo "$0: WARNING [`date`]: Beerocks processes stuck retry count=$PID_STUCK_RETRIES"  >> $BEEROCKS_LOG_PATH/slow_down.txt.0
+        top -b -n1 >> $BEEROCKS_LOG_PATH/slow_down.txt.0
+        echo " "
+        df >> $BEEROCKS_LOG_PATH/slow_down.txt.0
+        echo " "
     } || PID_STUCK_RETRIES=0
 
     if [ $PID_STUCK_RETRIES -gt $PID_STUCK_RETRIES_LIMIT ]; then
         echo "$0: CRITICAL: Beerocks processes are stuck (max retries expired), trigger error handler"
         PID_STUCK_RETRIES=0
         $BEEROCKS_ERROR_HANDLER 0 $BPL_ERR_WATCHDOG_PROCESS_STUCK
-    fi   
-    
+    fi
+
 done

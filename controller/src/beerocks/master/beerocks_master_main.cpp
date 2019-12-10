@@ -290,7 +290,7 @@ int main(int argc, char *argv[])
     //redirect stdout / stderr
     // int fd_log_file_std = beerocks::os_utils::redirect_console_std("/dev/null");
     int fd_log_file_std = beerocks::os_utils::redirect_console_std(beerocks_master_conf.sLog.path +
-                                                                   base_master_name + "_std.log");
+                                                                   base_master_name + "_std.txt.0");
 
     //write pid file
     beerocks::os_utils::write_pid_file(beerocks_master_conf.temp_path, base_master_name);
