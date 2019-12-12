@@ -11,6 +11,7 @@
 
 #include <beerocks/tlvf/beerocks_message_header.h>
 #include <tlvf/TlvList.h>
+#include <tlvf/tlvflogging.h>
 
 namespace beerocks {
 
@@ -52,6 +53,13 @@ public:
     {
         if (m_finalized)
             return true;
+        
+        for (auto &it: m_class_vector){
+            if(!(it->isPostInitSucceeded())){
+                TLVF_LOG(ERROR) << "TLV post init failed";
+                return false;
+            }
+        }
                 
         if (swap_needed)
             swap();
