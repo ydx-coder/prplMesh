@@ -67,8 +67,8 @@ message_com::parse_intel_vs_message(ieee1905_1::CmduMessageRx &cmdu_rx)
     if (!intel_oui(tlv_header))
         return nullptr;
 
-    std::shared_ptr<beerocks_header> hdr = std::make_shared<beerocks_header>(tlv_header->payload(),
-                                                tlv_header->payload_length(), true, cmdu_rx.swap_needed());
+    std::shared_ptr<beerocks_header> hdr = std::make_shared<beerocks_header>(
+        tlv_header->payload(), tlv_header->payload_length(), true, cmdu_rx.swap_needed());
     if (!hdr)
         return nullptr;
     auto actionhdr = hdr->addClass<beerocks_message::cACTION_HEADER>();
@@ -81,7 +81,8 @@ message_com::parse_intel_vs_message(ieee1905_1::CmduMessageRx &cmdu_rx)
 std::string message_com::print_cmdu_types(const message::sUdsHeader *uds_header,
                                           sCmduInfo *cmdu_info)
 {
-    ieee1905_1::CmduMessageRx cmdu_rx((uint8_t *)uds_header + sizeof(message::sUdsHeader), uds_header->length);
+    ieee1905_1::CmduMessageRx cmdu_rx((uint8_t *)uds_header + sizeof(message::sUdsHeader),
+                                      uds_header->length);
 
     auto cmdu_header = cmdu_rx.parse(uds_header->swap_needed);
 
@@ -104,7 +105,7 @@ std::string message_com::print_cmdu_types(ieee1905_1::CmduMessageRx &cmdu_rx, sC
     auto message_type = cmdu_rx.getMessageType();
     if (cmdu_info)
         cmdu_info->cmdu_type = message_type;
-    info                     = "cmdu_type=" + std::to_string(int(message_type));
+    info = "cmdu_type=" + std::to_string(int(message_type));
     if (message_type == ieee1905_1::eMessageType::VENDOR_SPECIFIC_MESSAGE) {
         auto tlv_header = cmdu_rx.addClass<ieee1905_1::tlvVendorSpecific>();
         if (!intel_oui(tlv_header))
@@ -113,7 +114,8 @@ std::string message_com::print_cmdu_types(ieee1905_1::CmduMessageRx &cmdu_rx, sC
             LOG(ERROR) << "addClass<tlvVendorSpecific> failed!";
             return info;
         }
-        ieee1905_1::TlvList actions(tlv_header->payload(), tlv_header->payload_length(), true, true);
+        ieee1905_1::TlvList actions(tlv_header->payload(), tlv_header->payload_length(), true,
+                                    true);
         auto beerocks_header = actions.addClass<beerocks_message::cACTION_HEADER>();
         if (!beerocks_header) {
             LOG(ERROR) << "addClass<cACTION_HEADER> failed!";
@@ -125,8 +127,8 @@ std::string message_com::print_cmdu_types(ieee1905_1::CmduMessageRx &cmdu_rx, sC
             cmdu_info->intel_vs_action_op = beerocks_header->action_op();
         }
 
-        info += ", INTEL_VS: action=" + std::to_string(beerocks_header->action()) + ", action_op=" +
-                std::to_string(beerocks_header->action_op());
+        info += ", INTEL_VS: action=" + std::to_string(beerocks_header->action()) +
+                ", action_op=" + std::to_string(beerocks_header->action_op());
     }
 
     if (uds_header->swap_needed) {
@@ -151,9 +153,9 @@ bool message_com::send_cmdu(Socket *sd, ieee1905_1::CmduMessageTx &cmdu_tx,
     if (!cmdu_tx.finalize(swap)) {
         LOG(ERROR) << "finalize failed -> " << print_cmdu_types(uds_header);
         LOG(DEBUG) << "hex_dump(" + std::to_string(cmdu_tx.getMessageLength()) + "):" << std::endl
-                   << utils::dump_buffer((uint8_t *)(cmdu_tx.getMessageBuff()
-                                         - sizeof(message::sUdsHeader)),
-                                         cmdu_tx.getMessageLength() + sizeof(message::sUdsHeader));
+                   << utils::dump_buffer(
+                          (uint8_t *)(cmdu_tx.getMessageBuff() - sizeof(message::sUdsHeader)),
+                          cmdu_tx.getMessageLength() + sizeof(message::sUdsHeader));
         return false;
     }
 

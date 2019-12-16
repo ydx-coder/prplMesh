@@ -9,11 +9,11 @@
 #ifndef _CmduMessage_H_
 #define _CmduMessage_H_
 
-#include <tlvf/ieee_1905_1/cCmduHeader.h>
-#include <tlvf/ieee_1905_1/tlvEndOfMessage.h>
-#include <tlvf/ieee_1905_1/eTlvType.h>
-#include <tlvf/TlvList.h>
 #include <memory>
+#include <tlvf/TlvList.h>
+#include <tlvf/ieee_1905_1/cCmduHeader.h>
+#include <tlvf/ieee_1905_1/eTlvType.h>
+#include <tlvf/ieee_1905_1/tlvEndOfMessage.h>
 #include <vector>
 
 namespace ieee1905_1 {
@@ -47,7 +47,10 @@ public:
      * @param idx index in the class T array
      * @return std::shared_ptr<T> to the T class at index `idx` in the class T array
      */
-    template <class T> std::shared_ptr<T> getClass(size_t idx) const { return tlvs.getClass<T>(idx); }
+    template <class T> std::shared_ptr<T> getClass(size_t idx) const
+    {
+        return tlvs.getClass<T>(idx);
+    }
 
     /**
      * @brief Get the number of classes of type T
@@ -69,7 +72,7 @@ public:
     uint16_t getNextTlvLength() const;
     uint8_t *getNextTlvData() const;
     void swap();
-    bool swap_needed() {return tlvs.swap_needed(); }
+    bool swap_needed() { return tlvs.swap_needed(); }
     bool is_finalized() const { return tlvs.is_finalized(); };
     bool is_swapped() const { return tlvs.is_swapped(); };
     eMessageType getMessageType();
@@ -87,9 +90,10 @@ private:
     // a TLV max size can't be larger than the MTU - CMDU header length - EOM TLV length.
     // However, when the CMDU is sent internally via UDS, this restriction does not apply.
     // So we allo changing it via set_max_tlv_length() API.
-    size_t m_max_tlv_length = kMaxCmduLength - kCmduHeaderLength - ieee1905_1::tlvEndOfMessage::get_initial_size();
+    size_t m_max_tlv_length =
+        kMaxCmduLength - kCmduHeaderLength - ieee1905_1::tlvEndOfMessage::get_initial_size();
 };
 
-}; // close namespace: ieee1905_1
+}; // namespace ieee1905_1
 
 #endif //_CmduMessage_H_
