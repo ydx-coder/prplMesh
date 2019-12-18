@@ -3,75 +3,123 @@
 scriptdir="$(cd "${0%/*}"; pwd)"
 rootdir="${scriptdir%/*/*/*/*}"
 
-if [ ! -f "$1" ] ; then
-    echo "Please specify a file containing the build args as the
-    first argument"
-    exit 1
-fi
+. "${rootdir}/tools/docker/functions.sh"
 
-# Source the args file:
-. "$(realpath "$1")"
+usage() {
+    echo "usage: $(basename $0) [-ipt]"
+    echo "  options:"
+    echo "      -h|--help - show this help menu"
+    echo "      -d|--target-device the device to build for"
+    echo "      -i|--image - build the docker image only"
+    echo "      -o|--openwrt-version - the openwrt version to use"
+    echo "      -r|--openwrt-repository - the openwrt repository to use"
+    echo "      -t|--tag - the tag to use for the builder image"
+    echo "      -v|--verbose - verbosity on"
+    echo " -d is always required."
+}
 
-if [ -z "$OPENWRT_REPOSITORY" ] ; then
-    OPENWRT_REPOSITORY=https://git.prpl.dev/prplmesh/prplwrt.git
-    echo "OPENWRT_REPOSITORY not set, using default value $OPENWRT_REPOSITORY"
+build_image() {
+    # We first need to build the corresponding images
+    docker build --tag "$image_tag" \
+           --build-arg OPENWRT_REPOSITORY \
+           --build-arg OPENWRT_VERSION \
+           --build-arg TARGET \
+           --build-arg PRPL_FEED \
+           "$scriptdir/"
+}
 
-fi
+build_prplmesh() {
+    dbg "Container name will be $container_name"
+    container_name="prplmesh-builder-$(date +%F_%H-%M-%S)"
+    docker run -i \
+           --name "$container_name" \
+           -e TARGET \
+           -e TARGET_PLATFORM_TYPE \
+           -e OPENWRT_VERSION \
+           -e PRPLMESH_VERSION \
+           -v "$scriptdir/scripts:/home/openwrt/openwrt_sdk/build_scripts/:ro" \
+           -v "${rootdir}:/prplMesh:ro" \
+           "$image_tag" \
+           ./build_scripts/build.sh
 
-if [ -z "$OPENWRT_VERSION" ] ; then
-    OPENWRT_VERSION=9d2efd
-    echo "OPENWRT_VERSION not set, using default value $OPENWRT_VERSION"
-fi
+    docker cp "${container_name}:/home/openwrt/openwrt_sdk/prplmesh-${TARGET}-${TARGET_PLATFORM_TYPE}-${OPENWRT_VERSION}-${PRPLMESH_VERSION}.ipk" .
 
-if [ -z "$TARGET" ] ; then
-    TARGET=mvebu
-    echo "TARGET not set, using default value $TARGET"
-fi
+    docker rm "${container_name}"
+}
 
-if [ -z "$TARGET_PLATFORM_TYPE" ] ; then
-    TARGET_PLATFORM_TYPE=turris-omnia
-    echo "TARGET_PLATFORM_TYPE not set, using default value $TARGET_PLATFORM_TYPE"
-fi
+main() {
+    OPTS=`getopt -o 'hd:io:r:t:v' --long help,device:,image,openwrt-version:,openwrt-repository:,tag:,verbose -n 'parse-options' -- "$@"`
 
-if [ -z "$PRPL_FEED" ] ; then
-    PRPL_FEED='https://git.prpl.dev/prplmesh/iwlwav.git^06a0126d5fb53b1d65bad90757a5f9f5f77419ca'
-    echo "PRPL_FEED not set, using default value $PRPL_FEED"
-fi
+    if [ $? != 0 ] ; then err "Failed parsing options." >&2 ; usage; exit 1 ; fi
 
-export OPENWRT_REPOSITORY
-export OPENWRT_VERSION
-export TARGET
-export TARGET_PLATFORM_TYPE
-PRPLMESH_VERSION="$(git describe --always --dirty --exclude '*')"
-export PRPLMESH_VERSION
-export PRPL_FEED
+    eval set -- "$OPTS"
 
-image_tag="prplmesh-builder-${TARGET}:${OPENWRT_VERSION}"
-container_name="prplmesh-builder-$(date +%F_%H-%M-%S)"
+    while true; do
+        case "$1" in
+            -h | --help)               usage; exit 0; shift ;;
+            -d | --target-device)      TARGET_DEVICE="$2"; shift ; shift ;;
+            -i | --image)              IMAGE_ONLY=true; shift ;;
+            -o | --openwrt-version)    OPENWRT_VERSION="$2"; shift; shift ;;
+            -r | --openwrt-repository) OPENWRT_REPOSITORY="$2"; shift; shift ;;
+            -t | --tag)                TAG="$2"; shift ; shift ;;
+            -v | --verbose)            VERBOSE=true; shift ;;
+            -- ) shift; break ;;
+            * ) err "unsupported argument $1"; usage; exit 1 ;;
+        esac
+    done
 
-echo "Image will be tagged as $image_tag"
-echo "Container name will be $container_name"
+    case "$TARGET_DEVICE" in
+        turris-omnia)
+            TARGET=mvebu
+            TARGET_PLATFORM_TYPE=turris-omnia
+            ;;
+        *)
+            err "Unknown target device: $TARGET_DEVICE"
+            info "Currently supported targets are: turris-omnia"
+            ;;
+    esac
 
-# We first need to build the corresponding images
-docker build --tag "$image_tag" \
-       --build-arg OPENWRT_REPOSITORY \
-       --build-arg OPENWRT_VERSION \
-       --build-arg TARGET \
-       --build-arg PRPL_FEED \
-       "$scriptdir/"
+    if [ -z "$OPENWRT_REPOSITORY" ] ; then
+        OPENWRT_REPOSITORY=https://git.prpl.dev/prplmesh/prplwrt.git
+        dbg "OPENWRT_REPOSITORY not set, using default value $OPENWRT_REPOSITORY"
+    fi
 
-# Next we'll build the specified prplMesh version and copy out the ipk
-docker run -i \
-       --name "$container_name" \
-       -e TARGET \
-       -e TARGET_PLATFORM_TYPE \
-       -e OPENWRT_VERSION \
-       -e PRPLMESH_VERSION \
-       -v "$scriptdir/scripts:/home/openwrt/openwrt_sdk/build_scripts/:ro" \
-       -v "${rootdir}:/prplMesh:ro" \
-       "$image_tag" \
-       ./build_scripts/build.sh
+    if [ -z "$OPENWRT_VERSION" ] ; then
+        OPENWRT_VERSION=9d2efd
+        dbg "OPENWRT_VERSION not set, using default value $OPENWRT_VERSION"
+    fi
 
-docker cp "${container_name}:/home/openwrt/openwrt_sdk/prplmesh-${TARGET}-${TARGET_PLATFORM_TYPE}-${OPENWRT_VERSION}-${PRPLMESH_VERSION}.ipk" .
+    if [ -z "$PRPL_FEED" ] ; then
+        PRPL_FEED='https://git.prpl.dev/prplmesh/iwlwav.git^06a0126d5fb53b1d65bad90757a5f9f5f77419ca'
+        dbg "PRPL_FEED not set, using default value $PRPL_FEED"
+    fi
 
-docker rm "${container_name}"
+    if [ -n "$TAG" ] ; then
+        image_tag=$TAG
+    else
+        image_tag="prplmesh-builder-${TARGET}:${OPENWRT_VERSION}"
+        dbg "image tag not set, using default value $image_tag"
+    fi
+
+    export OPENWRT_REPOSITORY
+    export OPENWRT_VERSION
+    export TARGET
+    export TARGET_PLATFORM_TYPE
+    PRPLMESH_VERSION="$(git describe --always --dirty --exclude '*')"
+    export PRPLMESH_VERSION
+    export PRPL_FEED
+
+    if [ $IMAGE_ONLY = true ] ; then
+        build_image
+	exit $?
+    fi
+
+    build_image
+    build_prplmesh
+
+}
+
+IMAGE_ONLY=false
+VERBOSE=false
+
+main "$@"
