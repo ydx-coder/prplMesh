@@ -71,6 +71,9 @@ main() {
         turris-omnia)
             TARGET=mvebu
             ;;
+	glinet-b1300)
+            TARGET=ipq40xx
+            ;;
         *)
             err "Unknown target device: $TARGET_DEVICE"
             info "Currently supported targets are: turris-omnia"
