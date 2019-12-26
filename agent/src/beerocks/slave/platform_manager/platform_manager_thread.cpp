@@ -1008,6 +1008,8 @@ bool main_thread::handle_cmdu(Socket *sd, ieee1905_1::CmduMessageRx &cmdu_rx)
                     LOG(ERROR) << "can't start ARP monitor";
                     return false;
                 }
+            } else {
+               LOG(INFO) << "ARP monitor is disabled by configuration file"; 
             }
 
             // Start DHCP monitor
@@ -1567,7 +1569,7 @@ bool main_thread::init_arp_monitor()
         int ret = bpl::arp_mon_start(&m_ctxArpMon, config.bridge_iface.c_str());
         if (ret < 0) {
             if (ret == -int(bpl::eErrorCode::OPERATION_NOT_SUPPORTED)) {
-                LOG(INFO) << "Skip starting ARP monitor (not supported)";
+                LOG(WARNING) << "Skip starting ARP monitor (not supported)";
                 return (true);
             }
             LOG(ERROR) << "Failed starting ARP monitor!";

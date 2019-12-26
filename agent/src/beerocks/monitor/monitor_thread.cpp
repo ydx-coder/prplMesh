@@ -273,10 +273,9 @@ void monitor_thread::after_select(bool timeout)
 
             LOG(TRACE) << "mon_rssi.start()";
             if (!mon_rssi.start(&mon_db, slave_socket)) {
-                LOG(ERROR) << "mon_rssi.start() failed";
-                thread_last_error_code = MONITOR_THREAD_ERROR_ATTACH_FAIL;
-                stop_monitor_thread();
-                return;
+            LOG(WARNING) << "mon_rssi.start() failed, probably due to insufficient "
+                            "permissions, ignore...";
+                mon_rssi.stop();
             }
 
 #ifdef BEEROCKS_RDKB

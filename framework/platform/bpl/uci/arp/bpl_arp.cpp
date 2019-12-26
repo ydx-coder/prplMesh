@@ -8,6 +8,7 @@
 
 #include "../../common/utils/utils.h"
 #include <bpl/bpl_arp.h>
+#include <bpl/bpl_err.h>
 
 #include "monitor/arp_monitor.h"
 
@@ -43,7 +44,7 @@ int arp_mon_start(BPL_ARP_MON_CTX *ctx, const char *iface)
     // Start the monitor
     if (pArpMon->start(iface) == false) {
         delete pArpMon;
-        return -1;
+        return -int(eErrorCode::OPERATION_NOT_SUPPORTED);
     }
 
     // Store the context
