@@ -395,6 +395,42 @@ public:
     bool get_hostap_is_acs_enabled(std::string mac);
 
     //
+    // Channel Scan
+    //
+    bool set_channel_scan_is_enabled(const std::string &mac, const bool enable);
+    bool get_channel_scan_is_enabled(const std::string &mac);
+
+    bool set_channel_scan_interval_sec(const std::string &mac, const int interval_sec);
+    int get_channel_scan_interval_sec(const std::string &mac);
+
+    bool set_channel_scan_in_progress(const std::string &mac, const bool scan_in_progress,
+                                      const bool single_scan);
+    bool get_channel_scan_in_progress(const std::string &mac, const bool single_scan);
+
+    bool set_channel_scan_results_status(const std::string &mac,
+                                         const beerocks::eChannelScanErrCode error_code,
+                                         const bool single_scan);
+    beerocks::eChannelScanErrCode get_channel_scan_results_status(const std::string &mac,
+                                                                  const bool single_scan);
+
+    bool set_channel_scan_dwell_time_msec(const std::string &mac, const int dwell_time_msec,
+                                          const bool single_scan);
+    int get_channel_scan_dwell_time_msec(const std::string &mac, const bool single_scan);
+
+    bool set_channel_scan_pool(const std::string &mac, const std::set<uint8_t> &channel_pool,
+                               bool single_scan);
+    const std::set<uint8_t> &get_channel_scan_pool(const std::string &mac, const bool single_scan);
+
+    bool is_channel_in_pool(const std::string &mac, const uint8_t channel, const bool single_scan);
+
+    bool clear_channel_scan_results(const std::string &mac, const bool single_scan);
+    bool add_channel_scan_results(const std::string &mac,
+                                  const sChannelScanResultsElement &scan_result,
+                                  const bool single_scan);
+    const std::list<sChannelScanResultsElement> &get_channel_scan_results(const std::string &mac,
+                                                                          const bool single_scan);
+
+    //
     // CLI
     //
     void add_cli_socket(Socket *sd);
