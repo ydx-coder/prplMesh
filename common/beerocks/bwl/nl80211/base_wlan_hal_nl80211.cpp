@@ -620,6 +620,12 @@ bool base_wlan_hal_nl80211::wpa_ctrl_send_msg(const std::string &cmd, char **rep
     return true;
 }
 
+bool base_wlan_hal_dummy::process_nl_events()
+{
+    LOG(DEBUG) << __func__ << "isn't implemented by derived and shouldn't be called";
+    return false;
+}
+
 bool base_wlan_hal_nl80211::refresh_radio_info()
 {
     parsed_obj_map_t reply;

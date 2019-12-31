@@ -279,6 +279,12 @@ bool base_wlan_hal_dummy::dummy_send_cmd(const std::string &cmd) { return false;
 
 bool base_wlan_hal_dummy::dummy_send_cmd(const std::string &cmd, char **reply) { return false; }
 
+bool base_wlan_hal_dummy::process_nl_events()
+{
+    LOG(DEBUG) << __func__ << "isn't implemented by derived and shouldn't be called";
+    return false;
+}
+
 bool base_wlan_hal_dummy::refresh_radio_info()
 {
     if (get_iface_name() == "wlan2") {
