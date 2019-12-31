@@ -19,14 +19,6 @@
 
 #include <math.h>
 
-#ifdef USE_LIBSAFEC
-#define restrict __restrict
-#include <libsafec/safe_str_lib.h>
-#elif USE_SLIBC
-#include <slibc/string.h>
-#else
-#error "No safe C library defined, define either USE_LIBSAFEC or USE_SLIBC"
-#endif
 
 //////////////////////////////////////////////////////////////////////////////
 ////////////////////////// Local Module Definitions //////////////////////////
@@ -2043,6 +2035,11 @@ bool ap_wlan_hal_dwpal::process_dwpal_event(char *buffer, int bufLen, const std:
         break;
     }
 
+    return true;
+}
+
+bool ap_wlan_hal_dwpal::process_dwpal_nl_event(struct nl_msg *msg) {
+    LOG(DEBUG) << __func__ << "isn't implemented by this derived and shouldn't be called";
     return true;
 }
 

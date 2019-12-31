@@ -582,6 +582,11 @@ bool mon_wlan_hal_dwpal::process_dwpal_event(char *buffer, int bufLen, const std
     return true;
 }
 
+bool mon_wlan_hal_dwpal::process_dwpal_nl_event(struct nl_msg *msg)
+{
+    return true;
+}
+
 } // namespace dwpal
 
 std::shared_ptr<mon_wlan_hal> mon_wlan_hal_create(std::string iface_name,
