@@ -10,13 +10,17 @@
 
 #include <bcl/beerocks_utils.h>
 #include <bcl/network/network_utils.h>
+#include <bcl/son/son_wireless_utils.h>
 
 #include <easylogging++.h>
+#include <net/if.h>
 
 #include <cmath>
+#include <functional>
 
 extern "C" {
 #include <dwpal.h>
+#include <slibc/stdio.h>
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -62,6 +66,24 @@ static mon_wlan_hal::Event dwpal_to_bwl_event(const std::string &opcode)
     return mon_wlan_hal::Event::Invalid;
 }
 
+static mon_wlan_hal::Event dwpal_nl_to_bwl_event(uint8_t cmd, bool waiting_for_results_ready)
+{
+    switch (cmd) {
+    case NL80211_CMD_TRIGGER_SCAN:
+        return mon_wlan_hal::Event::Channel_Scan_Triggered;
+    case NL80211_CMD_NEW_SCAN_RESULTS:
+        return waiting_for_results_ready ? mon_wlan_hal::Event::Channel_Scan_New_Results_Ready
+                                         : mon_wlan_hal::Event::Channel_Scan_Dump_Result;
+    case NL80211_CMD_SCAN_ABORTED:
+        return mon_wlan_hal::Event::Channel_Scan_Abort;
+    case SCAN_FINISH_CB:
+        return mon_wlan_hal::Event::Channel_Scan_Finished;
+    default:
+        LOG(ERROR) << "Unknown event received: " << int(cmd);
+        return mon_wlan_hal::Event::Invalid;
+    }
+}
+
 static void calc_curr_traffic(const uint64_t val, uint64_t &total, uint32_t &curr)
 {
     if (val >= total) {
@@ -72,6 +94,36 @@ static void calc_curr_traffic(const uint64_t val, uint64_t &total, uint32_t &cur
     total = val;
 }
 
+static bool dwpal_get_freq(const std::vector<unsigned int> &channel_pool, unsigned int curr_channel,
+                           const std::string &iface, ScanParams &scan_params)
+{
+    int freq_index = 0;
+    //configure center frequency for each scanned channel
+    for (auto channel : channel_pool) {
+        //channel validation
+        LOG(DEBUG) << " validating pool channel=" << channel;
+        if (son::wireless_utils::which_freq(curr_channel) == beerocks::eFreqType::FREQ_24G) {
+            // 2.4G interface
+            if (son::wireless_utils::which_freq(channel) == beerocks::eFreqType::FREQ_5G) {
+                LOG(ERROR) << " cannot scan 5G channel=" << int(channel)
+                           << " on 2G interface=" << iface;
+                return false;
+            }
+        } else {
+            // 5G interface
+            if (son::wireless_utils::which_freq(channel) == beerocks::eFreqType::FREQ_24G) {
+                LOG(ERROR) << " cannot scan 2G channel=" << int(channel)
+                           << " on 5G interface=" << iface;
+                return false;
+            }
+        }
+
+        scan_params.freq[freq_index] = beerocks::utils::wifi_channel_to_freq(int(channel));
+        LOG(DEBUG) << " channel scan pool add center frequency=" << scan_params.freq[freq_index];
+        freq_index++;
+    }
+    return true;
+};
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// Implementation ///////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -409,6 +461,95 @@ bool mon_wlan_hal_dwpal::sta_link_measurements_11k_request(const std::string &st
     return true;
 }
 
+bool mon_wlan_hal_dwpal::channel_scan_trigger(int dwell_time_msec,
+                                              const std::vector<unsigned int> &channel_pool)
+{
+    LOG(DEBUG) << __func__ << " received on interface=" << m_radio_info.iface_name;
+
+    //build scan parameters
+    ScanParams channel_scan_params = {0};
+    sScanCfgParams org_fg, new_fg;   //foreground scan param
+    sScanCfgParamsBG org_bg, new_bg; //background scan param
+
+    // get original scan params
+    if (!dwpal_get_scan_params_fg(org_fg) || !dwpal_get_scan_params_bg(org_bg)) {
+        LOG(ERROR) << "Failed getting original scan parameters";
+        return false;
+    }
+
+    // prepare new scan params with changed dwell time
+    memcpy_s(&new_fg, sizeof(new_fg), &org_fg, sizeof(org_fg));
+    memcpy_s(&new_bg, sizeof(new_bg), &org_bg, sizeof(org_bg));
+    new_fg.passive = dwell_time_msec;
+    new_fg.active  = dwell_time_msec;
+    new_bg.passive = dwell_time_msec;
+    new_bg.active  = dwell_time_msec;
+
+    // set new scan params & get newly set values for validation
+    if (!dwpal_set_scan_params_fg(new_fg) || !dwpal_set_scan_params_bg(new_bg)) {
+        LOG(ERROR) << "Failed setting new values, restoring original scan parameters";
+        dwpal_set_scan_params_fg(org_fg);
+        dwpal_set_scan_params_bg(org_bg);
+        return false;
+    }
+    if (!dwpal_get_scan_params_fg(new_fg) || !dwpal_get_scan_params_bg(new_bg) ||
+        (new_fg.active != dwell_time_msec) || (new_fg.passive != dwell_time_msec) ||
+        (new_bg.active != dwell_time_msec) || (new_bg.passive != dwell_time_msec)) {
+        LOG(ERROR) << "Validation failed, restoring original scan parameters";
+        dwpal_set_scan_params_fg(org_fg);
+        dwpal_set_scan_params_bg(org_bg);
+        return false;
+    }
+
+    // get frequancies from channel pool and set in scan_params
+    if (!dwpal_get_freq(channel_pool, m_radio_info.channel, m_radio_info.iface_name, channel_scan_params)) {
+        LOG(ERROR) << "Failed getting frequencies, restoring original scan parameters";
+        dwpal_set_scan_params_fg(org_fg);
+        dwpal_set_scan_params_bg(org_bg);
+        return false;
+    }
+    LOG(DEBUG) << __func__ << " frequancies set in scan_params";
+    // must as single wifi won't allow scan on ap without this flag
+    channel_scan_params.ap_force = 1;
+
+    if (dwpal_driver_nl_scan_trigger(get_dwpal_nl_ctx(), (char *)m_radio_info.iface_name.c_str(),
+                                     &channel_scan_params) != DWPAL_SUCCESS) {
+        LOG(ERROR) << " scan trigger failed! Abort scan, restoring original scan parameters";
+        dwpal_set_scan_params_fg(org_fg);
+        dwpal_set_scan_params_bg(org_bg);
+        return false;
+    }
+
+    // timeout for nl confirmation on scan trigger
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+
+    // restore scan params with original dwell time
+    // no reason to check since we restore the original params here anyway
+    // and the next validation will validate the change
+    dwpal_set_scan_params_fg(org_fg);
+    dwpal_set_scan_params_bg(org_bg);
+
+    // validate if "set" function to original values worked
+    if (!dwpal_get_scan_params_fg(new_fg) || !dwpal_get_scan_params_bg(new_bg) ||
+        (new_fg.active != org_fg.active) || (new_fg.passive != org_fg.passive) ||
+        (new_bg.active != org_bg.active) || (new_bg.passive != org_bg.passive)) {
+        LOG(ERROR) << "Validation failed, original scan parameters were not restored";
+        return false;
+    }
+
+    return true;
+}
+
+bool mon_wlan_hal_dwpal::channel_scan_dump_results()
+{
+    if (!dwpal_nl_cmd_scan_dump()) {
+        LOG(ERROR) << " scan results dump failed";
+        return false;
+    }
+
+    return true;
+}
+
 bool mon_wlan_hal_dwpal::process_dwpal_event(char *buffer, int bufLen, const std::string &opcode)
 {
     LOG(TRACE) << __func__ << " - opcode: |" << opcode << "|";
@@ -584,6 +725,105 @@ bool mon_wlan_hal_dwpal::process_dwpal_event(char *buffer, int bufLen, const std
 
 bool mon_wlan_hal_dwpal::process_dwpal_nl_event(struct nl_msg *msg)
 {
+    struct nlmsghdr *nlh     = nlmsg_hdr(msg);
+    struct genlmsghdr *gnlh  = (genlmsghdr *)nlmsg_data(nlh);
+    char ifname[IF_NAMESIZE] = "\0";
+    struct nlattr *tb[NL80211_ATTR_MAX + 1];
+    nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+
+    if (tb[NL80211_ATTR_IFINDEX] != NULL) {
+        if_indextoname(nla_get_u32(tb[NL80211_ATTR_IFINDEX]), ifname);
+    }
+
+    auto event = dwpal_nl_to_bwl_event(gnlh->cmd, m_waiting_for_results_ready);
+
+    switch (event) {
+    case Event::Channel_Scan_Triggered: {
+        LOG(DEBUG) << "DWPAL NL event channel scan triggered";
+        if (m_radio_info.iface_name.compare(ifname) != 0) {
+            // ifname doesn't match current interface
+            // meaning the event was recevied for a diffrent channel
+            LOG(DEBUG) << "ignoring event for other interfaces";
+            return true;
+        }
+
+        m_waiting_for_results_ready = true;
+        event_queue_push(event);
+        break;
+    }
+    case Event::Channel_Scan_New_Results_Ready: {
+        LOG(DEBUG) << "DWPAL NL event channel scan results dump";
+        if (m_radio_info.iface_name.compare(ifname) != 0) {
+            // ifname doesn't match current interface
+            // meaning the event was recevied for a diffrent channel
+            LOG(DEBUG) << "ignoring event for other interfaces";
+            return true;
+        }
+
+        if (m_nl_seq == 0 && nlh->nlmsg_seq != 0) {
+            LOG(DEBUG) << "Results dump are ready with sequence number: " << (int)nlh->nlmsg_seq;
+            m_nl_seq                    = nlh->nlmsg_seq;
+            m_waiting_for_results_ready = false;
+        }
+
+        event_queue_push(event);
+        channel_scan_dump_results();
+        break;
+    }
+    case Event::Channel_Scan_Dump_Result: {
+        LOG(DEBUG) << "DWPAL NL event channel scan results dump";
+        if (m_radio_info.iface_name.compare(ifname) != 0 || nlh->nlmsg_seq != m_nl_seq) {
+            // ifname doesn't match current interface or sequence number doesn't match
+            // current sequence number meaning the event was recevied for a diffrent channel
+            LOG(DEBUG) << "ignoring event for other interfaces";
+            return true;
+        }
+
+        //TODO: Translate results from NL format to usable format
+
+        event_queue_push(event);
+        break;
+    }
+    case Event::Channel_Scan_Abort: {
+        LOG(DEBUG) << "DWPAL NL event channel scan aborted";
+        if (m_radio_info.iface_name.compare(ifname) != 0) {
+            // ifname doesn't match current interface
+            // meaning the event was recevied for a diffrent channel
+            LOG(DEBUG) << "ignoring event for other interfaces";
+            return true;
+        }
+
+        LOG(DEBUG) << "Scan Aborted";
+
+        m_nl_seq                    = 0;
+        m_waiting_for_results_ready = false;
+
+        event_queue_push(event);
+        break;
+    }
+    case Event::Channel_Scan_Finished: {
+        LOG(DEBUG) << "DWPAL NL event channel scan finished";
+        if (nlh->nlmsg_seq != m_nl_seq) {
+            // Current event has a sequence number not matching the current sequence number
+            // meaning the event was recevied for a diffrent channel
+            LOG(DEBUG) << "ignoring event for other interfaces. Got: " << (int)nlh->nlmsg_seq
+                       << " instead of: " << (int)m_nl_seq;
+            return true;
+        }
+
+        LOG(DEBUG) << "Results finished for sequence: " << (int)nlh->nlmsg_seq;
+
+        m_nl_seq                    = 0;
+        m_waiting_for_results_ready = false;
+
+        event_queue_push(event);
+        break;
+    }
+    // Gracefully ignore unhandled events
+    default:
+        LOG(ERROR) << "Unknown DWPAL NL event received: " << int(event);
+        break;
+    }
     return true;
 }
 
