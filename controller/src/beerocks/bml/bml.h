@@ -534,6 +534,93 @@ int bml_set_vap_list_credentials(BML_CTX ctx, struct BML_VAP_INFO *vap_list,
  */
 int bml_get_vap_list_credentials(BML_CTX ctx, struct BML_VAP_INFO *vap_list, uint8_t *vaps_num);
 
+/**
+ * Enables or disables continuous channel scans.
+ *
+ * @param [in] ctx BML Context.
+ * @param [in] radio_mac Radio MAC of selected radio
+ * @param [in] enable Value of 1 to enable or 0 to disable.
+ *
+ * @return BML_RET_OK on success.
+ */
+int bml_set_continuous_channel_scan_enable(BML_CTX ctx, const char *radio_mac, int enable);
+
+/**
+ * get continuous channel scans param.
+ *
+ * @param [in] ctx BML Context.
+ * @param [in] radio_mac Radio MAC of selected radio
+ * @param [out] enable A reference for the result to be stored in.
+ *
+ * @return BML_RET_OK on success.
+ */
+int bml_get_continuous_channel_scan_enable(BML_CTX ctx, const char *radio_mac, int *output_enable);
+
+/**
+ * set continuous channel scan params.
+ *
+ * @param [in] ctx BML Context.
+ * @param [in] radio_mac Radio MAC of selected radio
+ * @param [in] dwell_time Set the dwell time in miliseconds.
+ * @param [in] interval_time Set the interval time in seconds.
+ * @param [in] channel_pool Set the channel pool for the channel scan.
+ * @param [in] channel_pool_size Set the channel scan's channel pool size.
+ *
+ * @return BML_RET_OK on success.
+ */
+int bml_set_continuous_channel_scan_params(BML_CTX ctx, const char *radio_mac, int dwell_time,
+                                           int interval_time, unsigned int *channel_pool,
+                                           int channel_pool_size);
+
+/**
+ * get continuous channel scan params.
+ *
+ * @param [in] ctx BML Context.
+ * @param [in] radio_mac Radio MAC of selected radio
+ * @param [out] dwell_time Get the dwell time in miliseconds.
+ * @param [out] interval_time Get the interval time in seconds.
+ * @param [out] channel_pool Get the channel pool for the channel scan.
+ * @param [out] channel_pool_size Get the channel scan's channel pool size.
+ *
+ * @return BML_RET_OK on success.
+ */
+int bml_get_continuous_channel_scan_params(BML_CTX ctx, const char *radio_mac, int *output_dwell_time,
+                                           int *output_interval_time, unsigned int *output_channel_pool,
+                                           int *output_channel_pool_size);
+
+/**
+ * get continuous channel scan results.
+ *
+ * @param [in] ctx                      BML Context.
+ * @param [in] radio_mac                radio MAC of selected radio
+ * @param [out] output_results          Returning results.
+ * @param [in] max_results_size         Max size of requested results 
+ * @param [out] output_results_size     Actual size of returning results.
+ * @param [out] output_result_status    Returning status of the results
+ * @param [in] is_single_scan           Flag indicating if the params belong to a single scan or not
+ * 
+ * @return BML_RET_OK on success.
+ */
+int bml_get_channel_scan_results(BML_CTX ctx, const char *radio_mac,
+                                 struct BML_NEIGHBOR_AP **output_results,
+                                 unsigned int *output_results_size,
+                                 const unsigned int max_results_size,
+                                 unsigned char *output_result_status, bool is_single_scan);
+
+/**
+ * Start a single channel scan with parameters.
+ *
+ * @param [in] ctx                  BML Context.
+ * @param [in] radio_mac            radio MAC of selected radio
+ * @param [in] dwell_time_ms        Set the dwell time in miliseconds.
+ * @param [in] channel_pool         Set the channel pool for the channel scan.
+ * @param [in] channel_pool_size    Set the channel scahn channel pool size.
+ *
+ * @return BML_RET_OK on success.
+ */
+int bml_start_single_channel_scan(BML_CTX ctx, const char *radio_mac, int dwell_time_ms,
+                                  int channel_pool_size, unsigned int *channel_pool);
+
 #ifdef __cplusplus
 } /* extern "C" */
 #endif

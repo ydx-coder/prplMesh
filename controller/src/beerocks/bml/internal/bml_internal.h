@@ -152,6 +152,28 @@ public:
     int bml_set_vap_list_credentials(const BML_VAP_INFO *vaps, const uint8_t vaps_num);
     int bml_get_vap_list_credentials(BML_VAP_INFO *vaps, uint8_t &vaps_num);
 
+    //set and get channel scan enable flag
+    int set_continuous_channel_scan_enable(const std::string &mac, int enable);
+    int get_continuous_channel_scan_enable(const std::string &mac, int *output_enable);
+
+    //set and get channel scan params
+    int set_continuous_channel_scan_params(const std::string &mac, int dwell_time,
+                                           int interval_time, unsigned int *channel_pool,
+                                           int channel_pool_size);
+    int get_continuous_channel_scan_params(const std::string &mac, int *output_dwell_time,
+                                           int *output_interval_time,
+                                           unsigned int *output_channel_pool,
+                                           int *output_channel_pool_size);
+
+    //get channel scan results
+    int get_channel_scan_results(const std::string &mac, BML_NEIGHBOR_AP **output_results,
+                                 unsigned int *output_results_size,
+                                 const unsigned int max_results_size, uint8_t *output_result_status,
+                                 bool is_single_scan);
+
+    //trigger single channel scan
+    int start_single_channel_scan(const std::string &mac, int dwell_time_ms, int channel_pool_size,
+                                  unsigned int *channel_pool);
     /*
  * Public static methods:
  */
@@ -216,6 +238,8 @@ private:
     beerocks::promise<bool> *m_prmLocalMasterGet        = nullptr;
     beerocks::promise<bool> *m_prmRestrictedChannelsGet = nullptr;
     beerocks::promise<int> *m_prmRdkbWlan               = nullptr;
+    beerocks::promise<bool> *m_prmChannelScanParamsGet  = nullptr;
+    beerocks::promise<int> *m_prmChannelScanResultsGet  = nullptr;
 
     std::map<uint8_t, beerocks::promise<int> *> m_prmCliResponses;
 
@@ -225,14 +249,19 @@ private:
     BML_STATS_UPDATE_CB m_cbStatsUpdate  = nullptr;
     BML_EVENT_CB m_cbEvent               = nullptr;
 
-    beerocks_message::sDeviceInfo *m_device_info                 = nullptr;
-    beerocks_message::sWifiCredentials *m_wifi_credentials       = nullptr;
-    beerocks_message::sAdminCredentials *m_admin_credentials     = nullptr;
-    beerocks_message::sVersions *m_master_slave_versions         = nullptr;
-    beerocks_message::sRestrictedChannels *m_Restricted_channels = nullptr;
-    BML_VAP_INFO *m_vaps                                         = nullptr;
-    uint8_t *m_pvaps_list_size                                   = nullptr;
-    uint16_t id                                                  = 0;
+    beerocks_message::sDeviceInfo *m_device_info                    = nullptr;
+    beerocks_message::sWifiCredentials *m_wifi_credentials          = nullptr;
+    beerocks_message::sAdminCredentials *m_admin_credentials        = nullptr;
+    beerocks_message::sVersions *m_master_slave_versions            = nullptr;
+    beerocks_message::sRestrictedChannels *m_Restricted_channels    = nullptr;
+    beerocks_message::sChannelScanRequestParams *m_ScanParams       = nullptr;
+    std::list<beerocks_message::sChannelScanResults> *m_ScanResults = nullptr;
+    uint8_t *m_ScanResults_status                                   = nullptr;
+    uint32_t *m_ScanResults_size                                    = nullptr;
+    uint32_t *m_ScanResults_maxsize                                 = nullptr;
+    BML_VAP_INFO *m_vaps                                            = nullptr;
+    uint8_t *m_pvaps_list_size                                      = nullptr;
+    uint16_t id                                                     = 0;
     static bool s_fExtLogContext;
 };
 

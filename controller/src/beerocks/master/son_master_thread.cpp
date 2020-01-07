@@ -21,6 +21,7 @@
 #include "db/db_algo.h"
 #include "db/network_map.h"
 #include "tasks/client_locating_task.h"
+#include "tasks/dynamic_channel_selection_task.h"
 #include "tasks/ire_network_optimization_task.h"
 #include "tasks/network_health_check_task.h"
 
@@ -3350,6 +3351,124 @@ bool master_thread::handle_cmdu_control_message(const std::string &src_mac,
                              &new_event);
         }
 #endif
+        break;
+    }
+    case beerocks_message::ACTION_CONTROL_CHANNEL_SCAN_TRIGGER_SCAN_RESPONSE: {
+        LOG(TRACE) << "ACTION_CONTROL_CHANNEL_SCAN_TRIGGER_SCAN_RESPONSE for mac " << hostap_mac;
+        break;
+    }
+    case beerocks_message::ACTION_CONTROL_CHANNEL_SCAN_TRIGGERED_NOTIFICATION: {
+        LOG(TRACE) << "DCS_task, sending SCAN_TRIGGERED for mac " << hostap_mac;
+        auto notification =
+            beerocks_header->addClass<beerocks_message::cACTION_CONTROL_CHANNEL_SCAN_TRIGGERED_NOTIFICATION>();
+        if (notification == nullptr) {
+            LOG(ERROR) << "addClass cACTION_CONTROL_CHANNEL_SCAN_TRIGGERED_NOTIFICATION failed";
+            return false;
+        }
+
+        dynamic_channel_selection_task::sScanTriggered_event new_event;
+        new_event.radio_mac = notification->radio_mac();
+        tasks.push_event(database.get_dynamic_channel_selection_task_id(hostap_mac),
+                         (int)dynamic_channel_selection_task::eEvent::SCAN_TRIGGERED,
+                         (void *)&new_event);
+        break;
+    }
+    case beerocks_message::ACTION_CONTROL_CHANNEL_SCAN_RESULTS_NOTIFICATION: {
+        LOG(TRACE) << "ACTION_CONTROL_CHANNEL_SCAN_RESULTS_NOTIFICATION for mac " << hostap_mac;
+        auto notification =
+            beerocks_header->addClass<beerocks_message::cACTION_CONTROL_CHANNEL_SCAN_RESULTS_NOTIFICATION>();
+        if (notification == nullptr) {
+            LOG(ERROR) << "addClass cACTION_CONTROL_CHANNEL_SCAN_RESULTS_NOTIFICATION failed";
+            return false;
+        }
+
+        //send results to dcs task
+        if (database.get_channel_scan_in_progress(hostap_mac, false) ||
+            database.get_channel_scan_in_progress(hostap_mac, true)) {
+
+            auto parse_scan_results =
+                [](sChannelScanResultsElement &db_results,
+                   const beerocks_message::sChannelScanResults &results) -> void {
+                db_results.ssid                     = std::string(results.ssid);
+                db_results.mac                      = network_utils::mac_to_string(results.bssid);
+                db_results.mode                     = std::string(results.mode);
+                db_results.channel                  = results.channel;
+                db_results.signal_strength          = results.signal_strength_dBm;
+                db_results.security_mode_enabled    = std::string(results.security_mode_enabled);
+                db_results.encryption_mode          = std::string(results.encryption_mode);
+                db_results.operating_frequency_band = std::string(results.operating_frequency_band);
+                db_results.supported_standards      = std::string(results.supported_standards);
+                db_results.operating_standards      = std::string(results.operating_standards);
+                db_results.operating_channel_bandwidth =
+                    std::string(results.operating_channel_bandwidth);
+                db_results.beacon_period = results.beacon_period_ms;
+                db_results.noise         = results.noise_dBm;
+                db_results.basic_data_transfer_rates =
+                    std::string(results.basic_data_transfer_rates_mbps);
+                db_results.supported_data_transfer_rates =
+                    std::string(results.supported_data_transfer_rates_mbps);
+                db_results.dtim_period         = results.dtim_period;
+                db_results.channel_utilization = results.channel_utilization;
+                db_results.timestamp           = std::chrono::steady_clock::now();
+            };
+
+            if (notification->is_dump() == 1) {
+                dynamic_channel_selection_task::sScanResultsDump_event new_event;
+                parse_scan_results(new_event.scan_results, notification->scan_results());
+                new_event.radio_mac = notification->radio_mac();
+                tasks.push_event(database.get_dynamic_channel_selection_task_id(hostap_mac),
+                             (int)dynamic_channel_selection_task::eEvent::SCAN_RESULTS_DUMP,
+                             (void *)&new_event);
+            } else {
+                dynamic_channel_selection_task::sScanResultsReady_event new_event;
+                new_event.radio_mac = notification->radio_mac();
+                tasks.push_event(database.get_dynamic_channel_selection_task_id(hostap_mac),
+                             (int)dynamic_channel_selection_task::eEvent::SCAN_RESULTS_READY,
+                             (void *)&new_event);
+            }
+
+            //push event to dcs task
+            
+        } else {
+            LOG(DEBUG) << "received scan results while scan-in-progress==false, ignoring."
+                          " hostap_mac="
+                       << hostap_mac;
+        }
+
+        break;
+    }
+    case beerocks_message::ACTION_CONTROL_CHANNEL_SCAN_FINISHED_NOTIFICATION: {
+        LOG(DEBUG) << "DCS_task, sending SCAN_FINISHED for mac " << hostap_mac;
+        auto notification =
+            beerocks_header->addClass<beerocks_message::cACTION_CONTROL_CHANNEL_SCAN_FINISHED_NOTIFICATION>();
+        if (notification == nullptr) {
+            LOG(ERROR) << "addClass cACTION_CONTROL_CHANNEL_SCAN_FINISHED_NOTIFICATION failed";
+            return false;
+        }
+
+        dynamic_channel_selection_task::sScanFinished_event new_event;
+        new_event.radio_mac = notification->radio_mac();
+
+        tasks.push_event(database.get_dynamic_channel_selection_task_id(hostap_mac),
+                         (int)dynamic_channel_selection_task::eEvent::SCAN_FINISHED,
+                         (void *)&new_event);
+        break;
+    }
+    case beerocks_message::ACTION_CONTROL_CHANNEL_SCAN_ABORT_NOTIFICATION: {
+        LOG(DEBUG) << "DCS_task, sending SCAN_ABORTED for mac " << hostap_mac;
+        auto notification =
+            beerocks_header->addClass<beerocks_message::cACTION_CONTROL_CHANNEL_SCAN_ABORT_NOTIFICATION>();
+        if (notification == nullptr) {
+            LOG(ERROR) << "addClass cACTION_CONTROL_CHANNEL_SCAN_ABORT_NOTIFICATION failed";
+            return false;
+        }
+
+        dynamic_channel_selection_task::sScanAbort_event new_event;
+        new_event.radio_mac = notification->radio_mac();
+
+        tasks.push_event(database.get_dynamic_channel_selection_task_id(hostap_mac),
+                         (int)dynamic_channel_selection_task::eEvent::SCAN_ABORTED,
+                         (void *)&new_event);
         break;
     }
     default: {

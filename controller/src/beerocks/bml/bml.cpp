@@ -556,3 +556,84 @@ int bml_channel_selection(BML_CTX ctx, const char *al_mac, const char *ruid)
 
     return (pBML->channel_selection(al_mac, ruid));
 }
+
+int bml_set_continuous_channel_scan_enable(BML_CTX ctx, const char *radio_mac, int enable)
+{
+    // Validate input parameters
+    if (!ctx)
+        return (-BML_RET_INVALID_ARGS);
+
+    bml_internal *pBML = (bml_internal *)ctx;
+
+    return (pBML->set_continuous_channel_scan_enable(radio_mac, enable));
+}
+
+int bml_get_continuous_channel_scan_enable(BML_CTX ctx, const char *radio_mac, int *output_enable)
+{
+    // Validate input parameters
+    if (!ctx)
+        return (-BML_RET_INVALID_ARGS);
+
+    bml_internal *pBML = (bml_internal *)ctx;
+
+    return (pBML->get_continuous_channel_scan_enable(radio_mac, output_enable));
+}
+
+int bml_set_continuous_channel_scan_params(BML_CTX ctx, const char *radio_mac, int dwell_time,
+                                           int interval_time, unsigned int *channel_pool,
+                                           int channel_pool_size)
+{
+    // Validate input parameters
+    if (!ctx)
+        return (-BML_RET_INVALID_ARGS);
+
+    bml_internal *pBML = (bml_internal *)ctx;
+
+    return (pBML->set_continuous_channel_scan_params(radio_mac, dwell_time, interval_time,
+                                                     channel_pool, channel_pool_size));
+}
+
+int bml_get_continuous_channel_scan_params(BML_CTX ctx, const char *radio_mac,
+                                           int *output_dwell_time, int *output_interval_time,
+                                           unsigned int *output_channel_pool,
+                                           int *output_channel_pool_size)
+{
+    // Validate input parameters
+    if (!ctx)
+        return (-BML_RET_INVALID_ARGS);
+
+    bml_internal *pBML = (bml_internal *)ctx;
+
+    return (pBML->get_continuous_channel_scan_params(radio_mac, output_dwell_time,
+                                                     output_interval_time, output_channel_pool,
+                                                     output_channel_pool_size));
+}
+
+int bml_get_channel_scan_results(BML_CTX ctx, const char *radio_mac,
+                                 struct BML_NEIGHBOR_AP **output_results,
+                                 unsigned int *output_results_size,
+                                 const unsigned int max_results_size,
+                                 unsigned char *output_result_status, bool is_single_scan)
+{
+    // Validate intput params;
+    if (!ctx)
+        return (-BML_RET_INVALID_ARGS);
+
+    bml_internal *pBML = (bml_internal *)ctx;
+
+    return (pBML->get_channel_scan_results(radio_mac, output_results, output_results_size,
+                                           max_results_size, output_result_status, is_single_scan));
+}
+
+int bml_start_single_channel_scan(BML_CTX ctx, const char *radio_mac, int dwell_time,
+                                  int channel_pool_size, unsigned int *channel_pool)
+{
+    // Validate intput params;
+    if (!ctx)
+        return (-BML_RET_INVALID_ARGS);
+
+    bml_internal *pBML = (bml_internal *)ctx;
+
+    return (
+        pBML->start_single_channel_scan(radio_mac, dwell_time, channel_pool_size, channel_pool));
+}
