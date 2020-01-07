@@ -34,6 +34,37 @@ namespace dwpal {
 ////////////////////////// Local Module Definitions //////////////////////////
 //////////////////////////////////////////////////////////////////////////////
 
+enum print_ie_type {
+    PRINT_SCAN,
+    PRINT_LINK,
+};
+
+enum ie_type : uint8_t {
+    TYPE_SSID                     = 0,
+    TYPE_SUPPORTED_RATES          = 1,
+    TYPE_TIM                      = 5,
+    TYPE_BSS_LOAD                 = 11,
+    TYPE_RSN                      = 48,
+    TYPE_EXTENDED_SUPPORTED_RATES = 50,
+    TYPE_HT_OPERATION             = 61,
+    TYPE_VHT_OPERATION            = 192,
+    TYPE_VENDOR                   = 221
+};
+
+struct ie_printer_t {
+    std::string name;
+    std::function<void(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)>
+        print_func;
+    uint8_t minlen;
+    uint8_t maxlen;
+    uint8_t flags;
+};
+
+typedef std::map<uint8_t, ie_printer_t> printers_map;
+
+#define WLAN_CAPABILITY_ESS (1 << 0)
+#define WLAN_CAPABILITY_IBSS (1 << 1)
+#define WLAN_CAPABILITY_PRIVACY (1 << 4)
 #define GET_OP_CLASS(channel) ((channel < 14) ? 4 : 5)
 
 // Allocate a char array wrapped in a shared_ptr
@@ -42,6 +73,27 @@ namespace dwpal {
         if (obj)                                                                                   \
             delete[] obj;                                                                          \
     })
+
+#define HELP_COPY_RET_VOID(x, y)                                                                   \
+    {                                                                                              \
+        snprintf_s(x, sizeof(x), "%s", y);                                                         \
+    }
+#define HELP_APPEND_RET_VOID(x, y, z)                                                              \
+    {                                                                                              \
+        snprintf_s(&x[strnlen_s(x, z)], abs(int(sizeof(x) - strnlen_s(x, z))), "%s,", y);          \
+    }
+
+#define HELP_COPY(x, y)                                                                            \
+    if (snprintf_s(x, sizeof(x), "%s", y) < 0) {                                                   \
+        LOG(ERROR) << "snprintf_s failed";                                                         \
+        return false;                                                                              \
+    }
+
+#define HELP_APPEND(x, y, z)                                                                       \
+    if (snprintf_s(&x[strnlen_s(x, z)], abs(int(sizeof(x) - strnlen_s(x, z))), "%s,", y) < 0) {    \
+        LOG(ERROR) << "snprintf_s failed";                                                         \
+        return false;                                                                              \
+    }
 
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////// Local Module Functions ///////////////////////////
@@ -124,6 +176,394 @@ static bool dwpal_get_freq(const std::vector<unsigned int> &channel_pool, unsign
     }
     return true;
 };
+
+static void mac_addr_n2a(char *mac_addr, unsigned char *arg)
+{
+    int i, l;
+
+    l = 0;
+    for (i = 0; i < ETH_ALEN; i++) {
+        if (i == 0) {
+            snprintf_s(mac_addr + l, sizeof(mac_addr + l), "%02x", arg[i]);
+            l += 2;
+        } else {
+            snprintf_s(mac_addr + l, sizeof(mac_addr + l), ":%02x", arg[i]);
+            l += 3;
+        }
+    }
+}
+
+/********************************
+ * Start of printer functions   *
+ ********************************/
+
+static void print_ssid(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)
+{
+    std::copy_n(data, len, results.ssid);
+}
+
+static void print_supprates(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)
+{
+    if (data == nullptr) {
+        return;
+    }
+
+    for (int i = 0; i < len; i++) {
+        int r = data[i] & 0x7f;
+
+        if (r / 2 == 11) {
+            if (!strncmp(results.operating_frequency_band, "2.4GHz", sizeof("2.4GHz") - 1)) {
+                HELP_APPEND_RET_VOID(results.supported_standards, "802.11b",
+                                     sizeof(results.supported_standards))
+                HELP_COPY_RET_VOID(results.operating_standards, "802.11b")
+            }
+        } else if (r / 2 == 54) {
+            if (!strncmp(results.operating_frequency_band, "5GHz", sizeof("5GHz") - 1)) {
+                HELP_APPEND_RET_VOID(results.supported_standards, "802.11a",
+                                     sizeof(results.supported_standards))
+                HELP_COPY_RET_VOID(results.operating_standards, "802.11a")
+            }
+        }
+
+        char tmp[256] = {'\0'};
+        if (0 > snprintf_s(tmp, sizeof(tmp), "%d.%d", r / 2, 5 * (r & 1))) {
+            LOG(ERROR) << "snprintf_s failed";
+            return;
+        }
+
+        if (data[i] & 0x80) {
+            HELP_APPEND_RET_VOID(results.basic_data_transfer_rates, tmp,
+                                 sizeof(results.basic_data_transfer_rates))
+        } else {
+            HELP_APPEND_RET_VOID(results.supported_data_transfer_rates, tmp,
+                                 sizeof(results.supported_data_transfer_rates))
+        }
+    }
+}
+
+static void print_tim(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)
+{
+    if (data == nullptr) {
+        return;
+    }
+
+    results.dtim_period = (unsigned int)data[1];
+}
+
+static void print_bss_load(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)
+{
+    results.channel_utilization = data[2] / 255;
+}
+
+static void print_ht_op(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)
+{
+    (void)len;
+
+    if (data == nullptr) {
+        return;
+    }
+
+    if (!(data[1] & 0x3)) {
+        HELP_COPY_RET_VOID(results.operating_channel_bandwidth, "20MHz")
+    } else if ((data[1] & 0x3) != 2) {
+        HELP_COPY_RET_VOID(results.operating_channel_bandwidth, "40MHz")
+    }
+
+    HELP_APPEND_RET_VOID(results.supported_standards, "802.11n",
+                         sizeof(results.supported_standards))
+    HELP_COPY_RET_VOID(results.operating_standards, "802.11n")
+}
+
+static void print_vht_oper(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)
+{
+    (void)len;
+
+    if (data == nullptr) {
+        return;
+    }
+
+    switch (data[0]) {
+    case 0:
+        break;
+    case 1:
+        if (data[2]) {
+            HELP_COPY_RET_VOID(results.operating_channel_bandwidth, "160")
+        } else {
+            HELP_COPY_RET_VOID(results.operating_channel_bandwidth, "80MHz");
+        }
+        break;
+    case 2:
+        HELP_COPY_RET_VOID(results.operating_channel_bandwidth, "80MHz");
+        break;
+    case 3:
+        HELP_COPY_RET_VOID(results.operating_channel_bandwidth, "80+80");
+        break;
+    default:
+        LOG(ERROR) << "illegal";
+    }
+
+    if (!strncmp(results.operating_frequency_band, "5GHz", sizeof("5GHz") - 1)) {
+        HELP_APPEND_RET_VOID(results.supported_standards, "802.11ac",
+                             sizeof(results.supported_standards))
+        HELP_COPY_RET_VOID(results.operating_standards, "802.11ac")
+    }
+}
+
+static void print_rsn(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)
+{
+    (void)len;
+    (void)data;
+
+    HELP_APPEND_RET_VOID(results.encryption_mode, "AES", sizeof(results.encryption_mode));
+    HELP_APPEND_RET_VOID(results.security_mode_enabled, "WPA2",
+                         sizeof(results.security_mode_enabled));
+}
+
+static void print_wifi_wpa(const uint8_t *data, uint8_t len, sDcsChannelScanResults &results)
+{
+    (void)len;
+    (void)data;
+
+    HELP_APPEND_RET_VOID(results.encryption_mode, "TKIP", sizeof(results.encryption_mode))
+    HELP_APPEND_RET_VOID(results.security_mode_enabled, "WPA",
+                         sizeof(results.security_mode_enabled))
+}
+/********************************
+ * End of printer functions   *
+ ********************************/
+
+printers_map ie_printers = {
+    {ie_type::TYPE_SSID,
+     {
+         "SSID", print_ssid, 0, 32, BIT(PRINT_SCAN) | BIT(PRINT_LINK),
+     }},
+    {ie_type::TYPE_SUPPORTED_RATES,
+     {
+         "Supported rates", print_supprates, 0, 255, BIT(PRINT_SCAN),
+     }},
+    {ie_type::TYPE_TIM,
+     {
+         "TIM", print_tim, 4, 255, BIT(PRINT_SCAN),
+     }},
+    {ie_type::TYPE_BSS_LOAD,
+     {
+         "BSS Load", print_bss_load, 5, 5, BIT(PRINT_SCAN),
+     }},
+    {ie_type::TYPE_RSN,
+     {
+         "RSN", print_rsn, 2, 255, BIT(PRINT_SCAN),
+     }},
+    {ie_type::TYPE_EXTENDED_SUPPORTED_RATES,
+     {
+         "Extended supported rates", print_supprates, 0, 255, BIT(PRINT_SCAN),
+     }},
+    {ie_type::TYPE_HT_OPERATION,
+     {
+         "HT operation", print_ht_op, 22, 22, BIT(PRINT_SCAN),
+     }},
+    {ie_type::TYPE_VHT_OPERATION,
+     {
+         "VHT operation", print_vht_oper, 5, 255, BIT(PRINT_SCAN),
+     }}};
+
+printers_map wifi_printers = {{1,
+                               {
+                                   "WPA", print_wifi_wpa, 2, 255, BIT(PRINT_SCAN),
+                               }}};
+
+static void print_vendor(uint8_t len, uint8_t *data)
+{
+    static const uint8_t ms_oui[3] = {0x00, 0x50, 0xf2};
+
+    if (len < 3) {
+        return;
+    }
+
+    if (len >= 4 && memcmp(data, ms_oui, 3) == 0) {
+        // this function is a stub for extending the support of wifi printers (as defined in iw lib)
+        if (wifi_printers.find(data[3]) != wifi_printers.end()) {
+            return;
+        }
+        return;
+    }
+}
+
+static void print_ie_by_key(const uint8_t key, const uint8_t *data, uint8_t len,
+                            sDcsChannelScanResults &results)
+{
+    auto p = ie_printers.find(key);
+
+    if (p == ie_printers.end()) {
+        LOG(ERROR) << "key doesn't exist in map";
+        return;
+    }
+
+    if (!p->second.print_func) {
+        LOG(ERROR) << "print function for key is undefined";
+        return;
+    }
+
+    if (len < p->second.minlen || len > p->second.maxlen) {
+        LOG(ERROR) << "doesn't match min and max len criteria";
+        return;
+    }
+
+    p->second.print_func(data, len, results);
+}
+
+static void print_ies(unsigned char *ie, int ielen, sDcsChannelScanResults &results)
+{
+    while (ielen >= 2 && ielen >= ie[1]) {
+        auto key      = ie[0];
+        auto length   = ie[1];
+        uint8_t *data = ie + 2;
+        if (ie_printers.find(key) != ie_printers.end()) {
+            if (key == ie_type::TYPE_EXTENDED_SUPPORTED_RATES) {
+                if (!strncmp(results.operating_frequency_band, "2.4GHz", sizeof("2.4GHz") - 1)) {
+                    HELP_APPEND_RET_VOID(results.supported_standards, "802.11g",
+                                         sizeof(results.supported_standards));
+                    HELP_COPY_RET_VOID(results.operating_standards, "802.11g");
+                }
+            }
+
+            print_ie_by_key(key, (const uint8_t *)data, length, results);
+        } else if (ie[0] == ie_type::TYPE_VENDOR /* vendor */) {
+            print_vendor(ie[1], data);
+        }
+
+        ielen -= length + 2;
+        ie += length + 2;
+    }
+}
+
+static bool read_nl_data_from_msg(struct nlattr **bss, struct nl_msg *msg)
+{
+    struct genlmsghdr *gnlh = (genlmsghdr *)nlmsg_data(nlmsg_hdr(msg));
+    struct nlattr *tb[NL80211_ATTR_MAX + 1];
+    static struct nla_policy bss_policy[NL80211_BSS_MAX + 1];
+
+    if (bss == nullptr || msg == nullptr) {
+        LOG(ERROR) << "invalid input bss=" << bss << ", msg=" << msg;
+        return false;
+    }
+
+    bss_policy[NL80211_BSS_BSSID]                = {};
+    bss_policy[NL80211_BSS_FREQUENCY].type       = NLA_U32;
+    bss_policy[NL80211_BSS_TSF].type             = NLA_U64;
+    bss_policy[NL80211_BSS_BEACON_INTERVAL].type = NLA_U16;
+    bss_policy[NL80211_BSS_CAPABILITY].type      = NLA_U16;
+    bss_policy[NL80211_BSS_INFORMATION_ELEMENTS] = {};
+    bss_policy[NL80211_BSS_SIGNAL_MBM].type      = NLA_U32;
+    bss_policy[NL80211_BSS_SIGNAL_UNSPEC].type   = NLA_U8;
+    bss_policy[NL80211_BSS_STATUS].type          = NLA_U32;
+    bss_policy[NL80211_BSS_SEEN_MS_AGO].type     = NLA_U32;
+    bss_policy[NL80211_BSS_BEACON_IES]           = {};
+
+    nla_parse(tb, NL80211_ATTR_MAX, genlmsg_attrdata(gnlh, 0), genlmsg_attrlen(gnlh, 0), NULL);
+
+    if (!tb[NL80211_ATTR_BSS]) {
+        LOG(ERROR) << "tb[NL80211_ATTR_BSS] == NULL";
+        return false;
+    }
+    if (nla_parse_nested(bss, NL80211_BSS_MAX, tb[NL80211_ATTR_BSS], bss_policy)) {
+        LOG(ERROR) << "nla_parse_nested failed";
+        return false;
+    }
+    if (!bss[NL80211_BSS_BSSID]) {
+        LOG(ERROR) << "tb[NL80211_BSS_BSSID] == NULL";
+        return false;
+    }
+
+    return true;
+}
+
+static bool translate_nl_data_to_bwl_results(sDcsChannelScanResults &results,
+                                             const struct nlattr **bss)
+{
+    //get bssid
+    char mac_addr[MAC_ADDR_SIZE];
+    mac_addr_n2a(mac_addr, (unsigned char *)nla_data(bss[NL80211_BSS_BSSID]));
+    beerocks::net::network_utils::mac_from_string(results.bssid.oct, mac_addr);
+
+    //get channel and operating frequency band
+    if (bss[NL80211_BSS_FREQUENCY]) {
+        int freq = nla_get_u32(bss[NL80211_BSS_FREQUENCY]);
+        if (freq >= 5180) {
+            HELP_COPY(results.operating_frequency_band, "5GHz")
+        } else {
+            HELP_COPY(results.operating_frequency_band, "2.4GHz")
+        }
+        results.channel = beerocks::utils::wifi_freq_to_channel(freq);
+    }
+
+    // get beacon period
+    if (bss[NL80211_BSS_BEACON_INTERVAL]) {
+        results.beacon_period = (unsigned int)nla_get_u16(bss[NL80211_BSS_BEACON_INTERVAL]);
+    }
+
+    // get signal strength
+    if (bss[NL80211_BSS_SIGNAL_UNSPEC]) {
+        results.signal_strength = (nla_get_u8(bss[NL80211_BSS_SIGNAL_UNSPEC])) / 100;
+    } else if (bss[NL80211_BSS_SIGNAL_MBM]) {
+        results.signal_strength = (nla_get_u32(bss[NL80211_BSS_SIGNAL_MBM])) / 100;
+    }
+
+    //get information elements from information-elements-buffer or from beacon
+    if (bss[NL80211_BSS_BEACON_IES]) {
+        enum nl80211_bss ies_index = (bss[NL80211_BSS_INFORMATION_ELEMENTS])
+                                         ? NL80211_BSS_INFORMATION_ELEMENTS
+                                         : NL80211_BSS_BEACON_IES;
+        print_ies((unsigned char *)nla_data(bss[ies_index]), nla_len(bss[ies_index]), results);
+    }
+
+    //get capabilities: mode, security_mode_enabled
+    if (bss[NL80211_BSS_CAPABILITY]) {
+        __u16 capa = nla_get_u16(bss[NL80211_BSS_CAPABILITY]);
+
+        if (capa & WLAN_CAPABILITY_IBSS) {
+            HELP_COPY(results.mode, "AdHoc")
+        } else if (capa & WLAN_CAPABILITY_ESS) {
+            HELP_COPY(results.mode, "Infrastructure")
+        }
+
+        if (strnlen_s(results.security_mode_enabled, sizeof(results.security_mode_enabled)) == 0) {
+            if (capa & WLAN_CAPABILITY_PRIVACY) {
+                HELP_COPY(results.security_mode_enabled, "WEP")
+            } else {
+                HELP_COPY(results.security_mode_enabled, "None")
+            }
+        }
+    }
+
+    return true;
+}
+
+static bool get_scan_results_from_nl_msg(sDcsChannelScanResults &results, struct nl_msg *msg)
+{
+    struct nlattr *bss[NL80211_BSS_MAX + 1];
+
+    if (msg == nullptr) {
+        LOG(ERROR) << "invalid input: msg==NULL" << msg;
+        return false;
+    }
+
+    //prepare
+    memset(&results, '\0', sizeof(sDcsChannelScanResults));
+
+    //read msg buffer into nl attributes struct
+    if (!read_nl_data_from_msg(bss, msg)) {
+        LOG(ERROR) << "failed to read nl data from msg";
+        return false;
+    }
+
+    if (!translate_nl_data_to_bwl_results(results, (const nlattr **)bss)) {
+        LOG(ERROR) << "failed to translate nl data to BWL results";
+        return false;
+    }
+
+    return true;
+}
+
 //////////////////////////////////////////////////////////////////////////////
 /////////////////////////////// Implementation ///////////////////////////////
 //////////////////////////////////////////////////////////////////////////////
@@ -779,9 +1219,29 @@ bool mon_wlan_hal_dwpal::process_dwpal_nl_event(struct nl_msg *msg)
             return true;
         }
 
-        //TODO: Translate results from NL format to usable format
+        auto results_buff = ALLOC_SMART_BUFFER(sizeof(sDCS_CHANNEL_SCAN_RESULTS_NOTIFICATION));
+        auto results =
+            reinterpret_cast<sDCS_CHANNEL_SCAN_RESULTS_NOTIFICATION *>(results_buff.get());
+        if (!results) {
+            LOG(FATAL) << "Memory allocation failed!";
+            return false;
+        }
+        // Initialize the message
+        memset(results_buff.get(), 0, sizeof(sDCS_CHANNEL_SCAN_RESULTS_NOTIFICATION));
 
-        event_queue_push(event);
+        bool parse_results        = !waiting_for_results_ready;
+        waiting_for_results_ready = false;
+
+        if (parse_results) {
+            if (!get_scan_results_from_nl_msg(results->channel_scan_results, msg)) {
+                LOG(ERROR) << "read NL msg to monitor msg failed!";
+                return false;
+            }
+            LOG(DEBUG) << "Processing results for BSSID:"
+                       << beerocks::net::network_utils::mac_to_string(results->channel_scan_results.bssid);
+        }
+
+        event_queue_push(event,results_buff);
         break;
     }
     case Event::Channel_Scan_Abort: {
