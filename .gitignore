@@ -6,3 +6,11 @@ _GO_KW
 .kwlp
 .kwps
 kw_reports
+.built
+.built_check
+.configured_*
+.pkgdir/
+.prepared
+.quilt_checked
+.source_dir
+ipkg-*/
