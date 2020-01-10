@@ -467,13 +467,16 @@ test_client_steering_dummy() {
     check docker exec repeater1 sh -c \
         "echo 'EVENT AP-STA-DISCONNECTED ${sta_mac}' > /tmp/$USER/beerocks/wlan0/EVENT"
 
-    #TODO// check for "disconnected after successful steering, proceeding to unblock" message 
+    # Make sure that controller sees disconnect before connect by waiting a little
+    sleep 1
 
     dbg "Connect dummy STA to wlan2"
     check docker exec repeater1 sh -c \
         "echo 'EVENT AP-STA-CONNECTED ${sta_mac}' > /tmp/$USER/beerocks/wlan2/EVENT"
 
     dbg "Confirm steering success by client connected"
+    check docker exec gateway sh -c \
+        "grep -i -q 'sta ${sta_mac} disconnected after successful steering' /tmp/\$USER/beerocks/logs/beerocks_controller.log"
     check docker exec gateway sh -c \
         "grep -i -q 'steering successful for sta ${sta_mac}' /tmp/\$USER/beerocks/logs/beerocks_controller.log"
     return $check_error
