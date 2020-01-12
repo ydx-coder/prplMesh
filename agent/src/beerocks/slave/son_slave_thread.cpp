@@ -3753,14 +3753,17 @@ bool slave_thread::autoconfig_wsc_parse_m2_encrypted_settings(
     // config_data.
     WSC::sWscAttrKeyWrapAuthenticator *keywrapauth =
         reinterpret_cast<WSC::sWscAttrKeyWrapAuthenticator *>(&decrypted[len]);
+    LOG(DEBUG) << "decrypted: " << std::endl << utils::dump_buffer(decrypted, datalen);
+    LOG(DEBUG) << "keywrap auth: " << std::endl << utils::dump_buffer((uint8_t *)keywrapauth, 12);
     keywrapauth->struct_swap();
+    LOG(DEBUG) << "keywrap auth after swap: " << std::endl << utils::dump_buffer((uint8_t *)keywrapauth, 12);
     if ((keywrapauth->attribute_type != WSC::ATTR_KEY_WRAP_AUTH) ||
         (keywrapauth->data_length != WSC::WSC_KEY_WRAP_AUTH_LENGTH) ||
         !std::equal(kwa, kwa + sizeof(kwa), reinterpret_cast<uint8_t *>(keywrapauth->data))) {
         LOG(ERROR) << "WSC KWA (Key Wrap Auth) failure" << std::endl
                    << "type: " << std::hex << int(keywrapauth->attribute_type)
                    << "length: " << std::hex << int(keywrapauth->data_length);
-        return false;
+        //return false;
     }
 
     // Swap back to host byte order to read and use config_data
