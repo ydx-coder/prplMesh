@@ -6,7 +6,7 @@
 # See LICENSE file for more details.
 ###############################################################
 
-ALL_TESTS="topology initial_ap_config ap_config_renew ap_config_bss_tear_down channel_selection
+ALL_TESTS="optimal_path_dummy topology initial_ap_config ap_config_renew ap_config_bss_tear_down channel_selection
            ap_capability_query client_capability_query combined_infra_metrics
            client_steering_mandate client_steering_dummy client_association_dummy client_steering_policy client_association
            higher_layer_data_payload_trigger higher_layer_data_payload"
