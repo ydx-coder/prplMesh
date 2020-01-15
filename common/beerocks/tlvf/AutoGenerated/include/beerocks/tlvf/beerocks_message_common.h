@@ -1227,37 +1227,80 @@ typedef struct sChannelScanRequestParams {
     }
 } __attribute__((packed)) sChannelScanRequestParams;
 
+enum eChannelScanResultMode: uint8_t {
+    eMode_NA = 0x0,
+    eMode_AdHoc = 0x1,
+    eMode_Infrastructure = 0x2,
+};
+
+enum eChannelScanResultEncryptionMode: uint8_t {
+    eEncryption_Mode_NA = 0x0,
+    eEncryption_Mode_AES = 0x1,
+    eEncryption_Mode_TKIP = 0x2,
+};
+
+enum eChannelScanResultSecurityMode: uint8_t {
+    eSecurity_Mode_None = 0x0,
+    eSecurity_Mode_WEP = 0x1,
+    eSecurity_Mode_WPA = 0x2,
+    eSecurity_Mode_WPA2 = 0x3,
+};
+
+enum eChannelScanResultOperatingFrequencyBand: uint8_t {
+    eOperating_Freq_Band_NA = 0x0,
+    eOperating_Freq_Band_2_4GHz = 0x1,
+    eOperating_Freq_Band_5GHz = 0x2,
+};
+
+enum eChannelScanResultStandards: uint8_t {
+    eStandard_NA = 0x0,
+    eStandard_802_11a = 0x1,
+    eStandard_802_11b = 0x2,
+    eStandard_802_11g = 0x3,
+    eStandard_802_11n = 0x4,
+    eStandard_802_11ac = 0x5,
+};
+
+enum eChannelScanResultChannelBandwidth: uint8_t {
+    eChannel_Bandwidth_NA = 0x0,
+    eChannel_Bandwidth_20MHz = 0x1,
+    eChannel_Bandwidth_40MHz = 0x2,
+    eChannel_Bandwidth_80MHz = 0x3,
+    eChannel_Bandwidth_160MHz = 0x4,
+    eChannel_Bandwidth_80_80 = 0x5,
+};
+
 typedef struct sChannelScanResults {
     //The current service set identifier in use by the neighboring WiFi SSID. The value MAY be empty for hidden SSIDs.
     char ssid[beerocks::message::WIFI_SSID_MAX_LENGTH];
     //The BSSID used for the neighboring WiFi SSID.
     sMacAddr bssid;
-    //The mode the neighboring WiFi radio is operating in. Enumeration of AdHoc, Infrastructure
-    char mode[beerocks::message::WIFI_GENERIC_STRING_LENGTH];
+    //The mode the neighboring WiFi radio is operating in. Enumerate
+    eChannelScanResultMode mode;
     //The current radio channel used by the neighboring WiFi radio.
     uint32_t channel;
     //An indicator of radio signal strength (RSSI) of the neighboring WiFi radio measured in dBm, as an average of the last 100 packets received.
     int32_t signal_strength_dBm;
-    //The type of encryption the neighboring WiFi SSID advertises. Enumeration of None, WPA-WPA2 etc.
-    char security_mode_enabled[beerocks::message::WIFI_GENERIC_STRING_LENGTH];
-    //Comma-separated list of strings. The type of encryption the neighboring WiFi SSID advertises. Each list item is an enumeration of TKIP, AES
-    char encryption_mode[beerocks::message::WIFI_GENERIC_STRING_LENGTH];
-    //Indicates the frequency band at which the radio this SSID instance is operating. Enumeration of 2.4GHz, 5GHz
-    char operating_frequency_band[beerocks::message::WIFI_OPERATING_STRING_LENGTH];
-    //Comma-separated list of strings. List items indicate which IEEE 802.11 standards thisResultinstance can support simultaneously, in the frequency band specified byOperatingFrequencyBand. Each list item is an enumeration of
-    char supported_standards[beerocks::message::WIFI_GENERIC_STRING_LENGTH];
-    //Comma-separated list of strings. Each list item MUST be a member of the list reported by theSupportedStandardsparameter. List items indicate which IEEE 802.11 standard that is detected for thisResult.
-    char operating_standards[beerocks::message::WIFI_OPERATING_STRING_LENGTH];
-    //Indicates the bandwidth at which the channel is operating. Enumeration of
-    char operating_channel_bandwidth[beerocks::message::WIFI_OPERATING_STRING_LENGTH];
+    //The type of encryption the neighboring WiFi SSID advertises. Enumerate List.
+    eChannelScanResultSecurityMode security_mode_enabled[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+    //The type of encryption the neighboring WiFi SSID advertises. Enumerate List.
+    eChannelScanResultEncryptionMode encryption_mode[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+    //Indicates the frequency band at which the radio this SSID instance is operating. Enumerate
+    eChannelScanResultOperatingFrequencyBand operating_frequency_band;
+    //List items indicate which IEEE 802.11 standards thisResultinstance can support simultaneously, in the frequency band specified byOperatingFrequencyBand. Enumerate List
+    eChannelScanResultStandards supported_standards[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+    //Indicates which IEEE 802.11 standard that is detected for this Result. Enumerate
+    eChannelScanResultStandards operating_standards;
+    //Indicates the bandwidth at which the channel is operating. Enumerate
+    eChannelScanResultChannelBandwidth operating_channel_bandwidth;
     //Time interval (inms) between transmitting beacons.
     uint32_t beacon_period_ms;
     //Indicator of average noise strength (indBm) received from the neighboring WiFi radio.
     int32_t noise_dBm;
-    //Comma-separated list (maximum list length 256) of strings. Basic data transmit rates (in Mbps) for the SSID. For example, ifBasicDataTransferRatesis "1,2", this indicates that the SSID is operating with basic rates of 1 Mbps and 2 Mbps.
-    char basic_data_transfer_rates_mbps[beerocks::message::WIFI_DATA_TRANSFER_RATES_LIST_LENGTH];
-    //Comma-separated list (maximum list length 256) of strings. Data transmit rates (in Mbps) for unicast frames at which the SSID will permit a station to connect. For example, ifSupportedDataTransferRatesis "1,2,5.5", this indicates that the SSID will only permit connections at 1 Mbps, 2 Mbps and 5.5 Mbps.
-    char supported_data_transfer_rates_mbps[beerocks::message::WIFI_DATA_TRANSFER_RATES_LIST_LENGTH];
+    //Basic data transmit rates (in Mbps) for the SSID.
+    int16_t basic_data_transfer_rates_mbps[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+    //Data transmit rates (in Mbps) for unicast frames at which the SSID will permit a station to connect.
+    int16_t supported_data_transfer_rates_mbps[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
     //The number of beacon intervals that elapse between transmission of Beacon frames containing a TIM element whose DTIM count field is 0. This value is transmitted in the DTIM Period field of beacon frames. [802.11-2012]
     uint32_t dtim_period;
     //Indicates the fraction of the time AP senses that the channel is in use by the neighboring AP for transmissions.
@@ -1268,6 +1311,12 @@ typedef struct sChannelScanResults {
         tlvf_swap(32, reinterpret_cast<uint8_t*>(&signal_strength_dBm));
         tlvf_swap(32, reinterpret_cast<uint8_t*>(&beacon_period_ms));
         tlvf_swap(32, reinterpret_cast<uint8_t*>(&noise_dBm));
+        for (size_t i = 0; i < beerocks::message::CHANNEL_SCAN_LIST_LENGTH; i++){
+            tlvf_swap(16, reinterpret_cast<uint8_t*>(&(basic_data_transfer_rates_mbps[i])));
+        }
+        for (size_t i = 0; i < beerocks::message::CHANNEL_SCAN_LIST_LENGTH; i++){
+            tlvf_swap(16, reinterpret_cast<uint8_t*>(&(supported_data_transfer_rates_mbps[i])));
+        }
         tlvf_swap(32, reinterpret_cast<uint8_t*>(&dtim_period));
         tlvf_swap(32, reinterpret_cast<uint8_t*>(&channel_utilization));
     }
