@@ -55,6 +55,7 @@ enum eStructsConsts {
     WIFI_GENERIC_STRING_LENGTH           = 64,
     WIFI_OPERATING_STRING_LENGTH         = 16,
     WIFI_DATA_TRANSFER_RATES_LIST_LENGTH = 256,
+    CHANNEL_SCAN_LIST_LENGTH             = 8,
 };
 
 enum eMessageConsts {
@@ -446,8 +447,8 @@ enum eBssType {
     BSS_TYPE_INVALID
 };
 
-enum eChannelScanErrCode : uint8_t {
-    CHANNEL_SCAN_NO_ERROR = 0,
+enum class eChannelScanErrCode : uint8_t {
+    CHANNEL_SCAN_SUCCESS = 0,
     CHANNEL_SCAN_INTERNAL_FAILURE,
     CHANNEL_SCAN_POOL_TOO_BIG,
     CHANNEL_SCAN_TRIGGERED_EVENT_TIMEOUT,
@@ -457,8 +458,8 @@ enum eChannelScanErrCode : uint8_t {
     CHANNEL_SCAN_INVALID_PARAMS
 };
 
-enum eChannelScanOpErrCode : uint8_t {
-    CHANNEL_SCAN_OP_NO_ERROR = 0,
+enum class eChannelScanOpErrCode : uint8_t {
+    CHANNEL_SCAN_OP_SUCCESS = 0,
     CHANNEL_SCAN_OP_ERROR,
     CHANNEL_SCAN_OP_SCAN_IN_PROGRESS,
     CHANNEL_SCAN_OP_SCAN_RESULTS_EMPTY,
