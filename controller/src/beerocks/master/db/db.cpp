@@ -15,6 +15,7 @@
 #include <algorithm>
 
 using namespace beerocks;
+using namespace beerocks_message;
 using namespace son;
 using namespace net;
 
@@ -2120,156 +2121,121 @@ bool db::get_hostap_is_acs_enabled(std::string mac)
 //
 // Channel Scan
 //
-bool db::set_channel_scan_is_enabled(const std::string &mac, const bool enable)
+bool db::set_channel_scan_is_enabled(const std::string &mac, bool enable)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
-    LOG(DEBUG) << __FUNCTION__ << ", continuous scan is enable = " << int(enable);
-    n->hostap->continuous_scan_config->is_enabled = enable;
+
+    hostap->continuous_scan_config->is_enabled = enable;
     return true;
 }
 
 bool db::get_channel_scan_is_enabled(const std::string &mac)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
-    return n->hostap->continuous_scan_config->is_enabled;
+
+    return hostap->continuous_scan_config->is_enabled;
 }
 
-bool db::set_channel_scan_interval_sec(const std::string &mac, const int interval_sec)
+bool db::set_channel_scan_interval_sec(const std::string &mac, int interval_sec)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
-    LOG(DEBUG) << __FUNCTION__ << ", continuous scan, interval sec = " << interval_sec;
-    n->hostap->continuous_scan_config->interval_sec = interval_sec;
+
+    hostap->continuous_scan_config->interval_sec = interval_sec;
     return true;
 }
 
 int db::get_channel_scan_interval_sec(const std::string &mac)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return -1;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
-        return -1;
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
+        return false;
     }
-    return n->hostap->continuous_scan_config->interval_sec;
+
+    return hostap->continuous_scan_config->interval_sec;
 }
 
-bool db::set_channel_scan_in_progress(const std::string &mac, const bool scan_in_progress,
-                                      const bool single_scan)
+bool db::set_channel_scan_in_progress(const std::string &mac, bool scan_in_progress,
+                                      bool single_scan)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
+
     LOG(DEBUG) << __FUNCTION__ << ", " << (single_scan ? "single" : "continuous")
                << " scan, scan in progress = " << int(scan_in_progress);
-    auto scan_status =
-        (single_scan) ? n->hostap->single_scan_status : n->hostap->continuous_scan_status;
-    scan_status->scan_in_progress = scan_in_progress;
+    (single_scan ? hostap->single_scan_status : hostap->continuous_scan_status)->scan_in_progress =
+        scan_in_progress;
 
     return true;
 }
 
-bool db::get_channel_scan_in_progress(const std::string &mac, const bool single_scan)
+bool db::get_channel_scan_in_progress(const std::string &mac, bool single_scan)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return -1;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
-        return -1;
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
+        return false;
     }
-    auto scan_status =
-        (single_scan) ? n->hostap->single_scan_status : n->hostap->continuous_scan_status;
-    return scan_status->scan_in_progress;
+
+    return (single_scan ? hostap->single_scan_status : hostap->continuous_scan_status)
+        ->scan_in_progress;
 }
 
 bool db::set_channel_scan_results_status(const std::string &mac,
-                                         const beerocks::eChannelScanErrCode error_code,
-                                         const bool single_scan)
+                                         beerocks::eChannelScanErrCode error_code, bool single_scan)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
+
     LOG(DEBUG) << __FUNCTION__ << ", " << (single_scan ? "single" : "continuous")
                << " scan, last scan error code = " << int(error_code);
 
-    auto scan_status =
-        (single_scan) ? n->hostap->single_scan_status : n->hostap->continuous_scan_status;
-    scan_status->last_scan_error_code = error_code;
+    (single_scan ? hostap->single_scan_status : hostap->continuous_scan_status)
+        ->last_scan_error_code = error_code;
 
     return true;
 }
 
 beerocks::eChannelScanErrCode db::get_channel_scan_results_status(const std::string &mac,
-                                                                  const bool single_scan)
+                                                                  bool single_scan)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return beerocks::CHANNEL_SCAN_INTERNAL_FAILURE;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
-        return beerocks::CHANNEL_SCAN_INTERNAL_FAILURE;
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
+        return beerocks::eChannelScanErrCode::CHANNEL_SCAN_INTERNAL_FAILURE;
     }
 
-    auto scan_status =
-        (single_scan) ? n->hostap->single_scan_status : n->hostap->continuous_scan_status;
-    return scan_status->last_scan_error_code;
+    return (single_scan ? hostap->single_scan_status : hostap->continuous_scan_status)
+        ->last_scan_error_code;
 }
 
 bool db::set_channel_scan_dwell_time_msec(const std::string &mac, int dwell_time_msec,
                                           bool single_scan)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
+
     LOG(DEBUG) << __FUNCTION__ << "," << (single_scan ? "single" : "continuous")
                << ", dwell time msec = " << dwell_time_msec;
 
@@ -2278,39 +2244,30 @@ bool db::set_channel_scan_dwell_time_msec(const std::string &mac, int dwell_time
         return false;
     }
 
-    auto scan_config =
-        (single_scan) ? n->hostap->single_scan_config : n->hostap->continuous_scan_config;
-    scan_config->dwell_time_msec = dwell_time_msec;
+    (single_scan ? hostap->single_scan_config : hostap->continuous_scan_config)->dwell_time_msec =
+        dwell_time_msec;
 
     return true;
 }
 
-int db::get_channel_scan_dwell_time_msec(const std::string &mac, const bool single_scan)
+int db::get_channel_scan_dwell_time_msec(const std::string &mac, bool single_scan)
 {
-    auto n = get_node(mac);
-
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return -1;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
-        return -1;
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
+        return false;
     }
 
-    auto scan_config =
-        (single_scan) ? n->hostap->single_scan_config : n->hostap->continuous_scan_config;
-    return scan_config->dwell_time_msec;
+    return (single_scan ? hostap->single_scan_config : hostap->continuous_scan_config)
+        ->dwell_time_msec;
 }
 
 bool db::set_channel_scan_pool(const std::string &mac, const std::set<uint8_t> &channel_pool,
-                               const bool single_scan)
+                               bool single_scan)
 {
-    auto n = get_node(mac);
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
 
@@ -2331,108 +2288,84 @@ bool db::set_channel_scan_pool(const std::string &mac, const std::set<uint8_t> &
             return false;
         }
     }
-    auto scan_config =
-        (single_scan) ? n->hostap->single_scan_config : n->hostap->continuous_scan_config;
-    scan_config->channel_pool = std::set<uint8_t>(channel_pool); // creates a copy of the pool
+
+    (single_scan ? hostap->single_scan_config : hostap->continuous_scan_config)->channel_pool =
+        channel_pool;
+
     LOG(DEBUG) << __FUNCTION__ << ", " << (single_scan ? "single" : "continuous")
                << " scan, setting channel pool succeeded!";
 
     return true;
 }
 
-const std::set<uint8_t> &db::get_channel_scan_pool(const std::string &mac, const bool single_scan)
+const std::set<uint8_t> &db::get_channel_scan_pool(const std::string &mac, bool single_scan)
 {
-    auto n = get_node(mac);
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return *(std::make_shared<std::set<uint8_t>>());
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
-        return *(std::make_shared<std::set<uint8_t>>());
+    static std::set<uint8_t> dummy_return;
+
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
+        return dummy_return;
     }
 
-    auto scan_config =
-        (single_scan) ? n->hostap->single_scan_config : n->hostap->continuous_scan_config;
-
-    return scan_config->channel_pool;
+    return (single_scan ? hostap->single_scan_config : hostap->continuous_scan_config)
+        ->channel_pool;
 }
 
-bool db::is_channel_in_pool(const std::string &mac, const uint8_t channel, const bool single_scan)
+bool db::is_channel_in_pool(const std::string &mac, uint8_t channel, bool single_scan)
 {
-    auto n = get_node(mac);
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
 
-    auto scan_config =
-        (single_scan) ? n->hostap->single_scan_config : n->hostap->continuous_scan_config;
-    auto &channel_pool = scan_config->channel_pool;
-
-    return channel_pool.find(channel) != channel_pool.end();
+    auto &pool =
+        (single_scan ? hostap->single_scan_config : hostap->continuous_scan_config)->channel_pool;
+    return pool.find(channel) != pool.end();
 }
 
-bool db::clear_channel_scan_results(const std::string &mac, const bool single_scan)
+bool db::clear_channel_scan_results(const std::string &mac, bool single_scan)
 {
-
-    auto n = get_node(mac);
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
 
-    auto &scan_results =
-        (single_scan) ? n->hostap->single_scan_results : n->hostap->continuous_scan_results;
-
-    scan_results.clear();
+    (single_scan ? hostap->single_scan_config : hostap->continuous_scan_config)
+        ->channel_pool.clear();
+    
     return true;
 }
 
-bool db::add_channel_scan_results(const std::string &mac,
-                                  const sChannelScanResultsElement &scan_result,
-                                  const bool single_scan)
+bool db::add_channel_scan_results(const std::string &mac, const sChannelScanResults &scan_result,
+                                  bool single_scan)
 {
-
-    auto n = get_node(mac);
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return false;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return false;
     }
 
-    auto &scan_results =
-        (single_scan) ? n->hostap->single_scan_results : n->hostap->continuous_scan_results;
-
-    scan_results.push_back(scan_result);
+    (single_scan ? hostap->single_scan_results : hostap->continuous_scan_results)
+        .push_back(scan_result);
 
     return true;
 }
 
-const std::list<sChannelScanResultsElement> &db::get_channel_scan_results(const std::string &mac,
-                                                                          const bool single_scan)
+const std::list<sChannelScanResults> &db::get_channel_scan_results(const std::string &mac,
+                                                                   bool single_scan)
 {
-    auto n = get_node(mac);
-    static std::list<sChannelScanResultsElement> dummy_return;
-    if (!n) {
-        LOG(ERROR) << "node not found.... ";
-        return dummy_return;
-    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
-        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+    static std::list<sChannelScanResults> dummy_return;
+
+    auto hostap = get_hostap_by_mac(mac);
+    if (!hostap) {
+        LOG(ERROR) << "unable to get hostap";
         return dummy_return;
     }
 
-    auto &scan_results =
-        (single_scan) ? n->hostap->single_scan_results : n->hostap->continuous_scan_results;
-
-    return scan_results;
+   return (single_scan ? hostap->single_scan_results : hostap->continuous_scan_results);
 }
 
 //
@@ -3474,6 +3407,21 @@ std::shared_ptr<node> db::get_node(sMacAddr al_mac, sMacAddr ruid)
         key = network_utils::mac_to_string(al_mac) + network_utils::mac_to_string(ruid);
 
     return get_node(key);
+}
+
+std::shared_ptr<node::radio> db::get_hostap_by_mac(const std::string &mac)
+{
+    auto n = get_node(mac);
+
+    if (!n) {
+        LOG(ERROR) << "node not found.... ";
+        return nullptr;
+    } else if (n->get_type() != beerocks::TYPE_SLAVE || n->hostap == nullptr) {
+        LOG(ERROR) << __FUNCTION__ << "node " << mac << " is not a valid hostap!";
+        return nullptr;
+    }
+
+    return n->hostap;
 }
 
 std::set<std::shared_ptr<node>> db::get_node_subtree(std::shared_ptr<node> n)

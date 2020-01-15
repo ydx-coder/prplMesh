@@ -21,6 +21,8 @@
 #include <mutex>
 #include <queue>
 
+using namespace beerocks_message;
+
 namespace son {
 
 // Forward decleration for master_thread context saving
@@ -397,38 +399,37 @@ public:
     //
     // Channel Scan
     //
-    bool set_channel_scan_is_enabled(const std::string &mac, const bool enable);
+    bool set_channel_scan_is_enabled(const std::string &mac, bool enable);
     bool get_channel_scan_is_enabled(const std::string &mac);
 
-    bool set_channel_scan_interval_sec(const std::string &mac, const int interval_sec);
+    bool set_channel_scan_interval_sec(const std::string &mac, int interval_sec);
     int get_channel_scan_interval_sec(const std::string &mac);
 
-    bool set_channel_scan_in_progress(const std::string &mac, const bool scan_in_progress,
+    bool set_channel_scan_in_progress(const std::string &mac, bool scan_in_progress,
                                       const bool single_scan);
-    bool get_channel_scan_in_progress(const std::string &mac, const bool single_scan);
+    bool get_channel_scan_in_progress(const std::string &mac, bool single_scan);
 
     bool set_channel_scan_results_status(const std::string &mac,
-                                         const beerocks::eChannelScanErrCode error_code,
-                                         const bool single_scan);
+                                         beerocks::eChannelScanErrCode error_code,
+                                         bool single_scan);
     beerocks::eChannelScanErrCode get_channel_scan_results_status(const std::string &mac,
-                                                                  const bool single_scan);
+                                                                  bool single_scan);
 
-    bool set_channel_scan_dwell_time_msec(const std::string &mac, const int dwell_time_msec,
-                                          const bool single_scan);
-    int get_channel_scan_dwell_time_msec(const std::string &mac, const bool single_scan);
+    bool set_channel_scan_dwell_time_msec(const std::string &mac, int dwell_time_msec,
+                                          bool single_scan);
+    int get_channel_scan_dwell_time_msec(const std::string &mac, bool single_scan);
 
     bool set_channel_scan_pool(const std::string &mac, const std::set<uint8_t> &channel_pool,
                                bool single_scan);
-    const std::set<uint8_t> &get_channel_scan_pool(const std::string &mac, const bool single_scan);
+    const std::set<uint8_t> &get_channel_scan_pool(const std::string &mac, bool single_scan);
 
-    bool is_channel_in_pool(const std::string &mac, const uint8_t channel, const bool single_scan);
+    bool is_channel_in_pool(const std::string &mac, uint8_t channel, bool single_scan);
 
-    bool clear_channel_scan_results(const std::string &mac, const bool single_scan);
-    bool add_channel_scan_results(const std::string &mac,
-                                  const sChannelScanResultsElement &scan_result,
-                                  const bool single_scan);
-    const std::list<sChannelScanResultsElement> &get_channel_scan_results(const std::string &mac,
-                                                                          const bool single_scan);
+    bool clear_channel_scan_results(const std::string &mac, bool single_scan);
+    bool add_channel_scan_results(const std::string &mac, const sChannelScanResults &scan_result,
+                                  bool single_scan);
+    const std::list<sChannelScanResults> &get_channel_scan_results(const std::string &mac,
+                                                                   bool single_scan);
 
     //
     // CLI
@@ -711,6 +712,7 @@ private:
     std::shared_ptr<node> get_node(std::string key); //key can be <mac> or <al_mac>_<ruid>
     std::shared_ptr<node> get_node(sMacAddr mac);
     std::shared_ptr<node> get_node(sMacAddr al_mac, sMacAddr ruid);
+    std::shared_ptr<node::radio> get_hostap_by_mac(const std::string& mac);
     int get_node_hierarchy(std::shared_ptr<node> n);
     std::set<std::shared_ptr<node>> get_node_subtree(std::shared_ptr<node> n);
     void adjust_subtree_hierarchy(std::shared_ptr<node> n);
