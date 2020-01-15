@@ -2256,8 +2256,7 @@ bool slave_thread::handle_cmdu_ap_manager_message(Socket *sd,
             return false;
         }
 
-        channel_preference_tlv->radio_uid() =
-            network_utils::mac_from_string(config.radio_identifier);
+        channel_preference_tlv->radio_uid() = hostap_params.iface_mac;
 
         for (auto preference : preferences) {
             // Create operating class object
@@ -2295,7 +2294,7 @@ bool slave_thread::handle_cmdu_ap_manager_message(Socket *sd,
             }
         }
 
-        LOG(DEBUG) << "sending channel preference report for ruid=" << config.radio_identifier;
+        LOG(DEBUG) << "sending channel preference report for ruid=" << hostap_params.iface_mac;
 
         send_cmdu_to_controller(cmdu_tx);
 
@@ -3888,8 +3887,8 @@ bool slave_thread::handle_autoconfiguration_wsc(Socket *sd, ieee1905_1::CmduMess
         return false;
     }
     // Check if the message is for this radio agent by comparing the ruid
-    if (network_utils::mac_from_string(config.radio_identifier) != ruid->radio_uid()) {
-        LOG(DEBUG) << "not to me - ruid " << config.radio_identifier
+    if (hostap_params.iface_mac != ruid->radio_uid()) {
+        LOG(DEBUG) << "not to me - Radio ID " << hostap_params.iface_mac
                    << " != " << network_utils::mac_to_string(ruid->radio_uid());
         return true;
     }
@@ -4337,8 +4336,8 @@ bool slave_thread::handle_channel_selection_request(Socket *sd, ieee1905_1::Cmdu
     for (auto channel_preference_tlv : cmdu_rx.getClassList<wfa_map::tlvChannelPreference>()) {
 
         const auto &ruid = channel_preference_tlv->radio_uid();
-        if (network_utils::mac_to_string(ruid) != config.radio_identifier) {
-            LOG(DEBUG) << "ruid_rx=" << ruid << ", son_slave_ruid=" << config.radio_identifier;
+        if (ruid != hostap_params.iface_mac) {
+            LOG(DEBUG) << "ruid_rx=" << ruid << ", son_slave_ruid=" << hostap_params.iface_mac;
             continue;
         }
 
@@ -4419,8 +4418,7 @@ bool slave_thread::handle_channel_selection_request(Socket *sd, ieee1905_1::Cmdu
         return false;
     }
 
-    channel_selection_response_tlv->radio_uid() =
-        network_utils::mac_from_string(config.radio_identifier);
+    channel_selection_response_tlv->radio_uid() = hostap_params.iface_mac;
     channel_selection_response_tlv->response_code() =
         wfa_map::tlvChannelSelectionResponse::eResponseCode::ACCEPT;
 
@@ -4441,8 +4439,7 @@ bool slave_thread::handle_channel_selection_request(Socket *sd, ieee1905_1::Cmdu
         return false;
     }
 
-    operating_channel_report_tlv->radio_uid() =
-        network_utils::mac_from_string(config.radio_identifier);
+    operating_channel_report_tlv->radio_uid() = hostap_params.iface_mac;
 
     auto op_classes_list = operating_channel_report_tlv->alloc_operating_classes_list();
     if (!op_classes_list) {
@@ -4479,7 +4476,7 @@ bool slave_thread::add_radio_basic_capabilities()
         LOG(ERROR) << "Error creating TLV_AP_RADIO_BASIC_CAPABILITIES";
         return false;
     }
-    radio_basic_caps->radio_uid() = network_utils::mac_from_string(config.radio_identifier);
+    radio_basic_caps->radio_uid() = hostap_params.iface_mac;
     //TODO get maximum supported VAPs from DWPAL
     radio_basic_caps->maximum_number_of_bsss_supported() = 2;
 
