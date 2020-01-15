@@ -33,27 +33,43 @@ typedef struct {
     bool backhaul_vap;
 } sVapElement;
 
-typedef struct {
-    // std::string radio;
-    std::string ssid;
-    std::string mac;
-    std::string mode;
-    uint32_t channel;
-    int32_t signal_strength;
-    std::string security_mode_enabled;
-    std::string encryption_mode;
-    std::string operating_frequency_band;
-    std::string supported_standards;
-    std::string operating_standards;
-    std::string operating_channel_bandwidth;
-    uint32_t beacon_period;
-    int32_t noise;
-    std::string basic_data_transfer_rates;
-    std::string supported_data_transfer_rates;
-    uint32_t dtim_period;
-    uint32_t channel_utilization;
-    std::chrono::steady_clock::time_point timestamp;
-} sChannelScanResultsElement;
+// typedef struct {
+//     char ssid[beerocks::message::WIFI_SSID_MAX_LENGTH];
+//     //The BSSID used for the neighboring WiFi SSID.
+//     sMacAddr bssid;
+//     //The mode the neighboring WiFi radio is operating in. Enumerate
+//     beerocks_message::eChannelScanResultMode mode;
+//     //The current radio channel used by the neighboring WiFi radio.
+//     uint32_t channel;
+//     //An indicator of radio signal strength (RSSI) of the neighboring WiFi radio measured in dBm, as an average of the last 100 packets received.
+//     int32_t signal_strength_dBm;
+//     //The type of encryption the neighboring WiFi SSID advertises. Enumerate List.
+//     beerocks_message::eChannelScanResultSecurityMode security_mode_enabled[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+//     //The type of encryption the neighboring WiFi SSID advertises. Enumerate List.
+//     beerocks_message::eChannelScanResultEncryptionMode encryption_mode[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+//     //Indicates the frequency band at which the radio this SSID instance is operating. Enumerate
+//     beerocks_message::eChannelScanResultOperatingFrequencyBand operating_frequency_band;
+//     //List items indicate which IEEE 802.11 standards thisResultinstance can support simultaneously, in the frequency band specified byOperatingFrequencyBand. Enumerate List
+//     beerocks_message::eChannelScanResultStandards supported_standards[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+//     //Indicates which IEEE 802.11 standard that is detected for this Result. Enumerate
+//     beerocks_message::eChannelScanResultStandards operating_standards;
+//     //Indicates the bandwidth at which the channel is operating. Enumerate
+//     beerocks_message::eChannelScanResultChannelBandwidth operating_channel_bandwidth;
+//     //Time interval (inms) between transmitting beacons.
+//     uint32_t beacon_period_ms;
+//     //Indicator of average noise strength (indBm) received from the neighboring WiFi radio.
+//     int32_t noise_dBm;
+//     //Basic data transmit rates (in Mbps) for the SSID.
+//     int16_t basic_data_transfer_rates_mbps[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+//     //Data transmit rates (in Mbps) for unicast frames at which the SSID will permit a station to connect.
+//     int16_t supported_data_transfer_rates_mbps[beerocks::message::CHANNEL_SCAN_LIST_LENGTH];
+//     //The number of beacon intervals that elapse between transmission of Beacon frames containing a TIM element whose DTIM count field is 0. This value is transmitted in the DTIM Period field of beacon frames. [802.11-2012]
+//     uint32_t dtim_period;
+//     //Indicates the fraction of the time AP senses that the channel is in use by the neighboring AP for transmissions.
+//     uint32_t channel_utilization;
+//     //Timestamp for the channel results
+//     std::chrono::steady_clock::time_point timestamp;
+// } sChannelScanResultsElement;
 
 class node {
 public:
@@ -206,26 +222,27 @@ public:
         std::shared_ptr<ap_stats_params> stats_info;
         std::unordered_map<int8_t, sVapElement> vaps_info;
 
-        class channel_scan_config {
-        public:
+        struct channel_scan_config {
             bool is_enabled = false;
             std::set<uint8_t> channel_pool; // default value: empty list
             int interval_sec    = -1;       //-1 (invalid)
             int dwell_time_msec = -1;       //-1 (invalid)
         };
 
-        class channel_scan_status {
-        public:
-            bool scan_in_progress                              = false;
-            beerocks::eChannelScanErrCode last_scan_error_code = beerocks::CHANNEL_SCAN_NO_ERROR;
+        struct channel_scan_status {
+            bool scan_in_progress = false;
+            beerocks::eChannelScanErrCode last_scan_error_code =
+                beerocks::eChannelScanErrCode::CHANNEL_SCAN_SUCCESS;
         };
+        //These members are part of the continuous scan
+        //The contiuous scan, scans every
         std::shared_ptr<channel_scan_config> continuous_scan_config;
         std::shared_ptr<channel_scan_status> continuous_scan_status;
-        std::list<sChannelScanResultsElement> continuous_scan_results;
+        std::list<beerocks_message::sChannelScanResults> continuous_scan_results;
 
         std::shared_ptr<channel_scan_config> single_scan_config;
         std::shared_ptr<channel_scan_status> single_scan_status;
-        std::list<sChannelScanResultsElement> single_scan_results;
+        std::list<beerocks_message::sChannelScanResults> single_scan_results;
     };
     std::shared_ptr<radio> hostap;
 
