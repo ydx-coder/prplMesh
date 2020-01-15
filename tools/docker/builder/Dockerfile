@@ -12,7 +12,8 @@ FROM $image
 RUN apt-get update && apt-get install -y \
 	curl \
 	gcc \
-	cmake \
+        cmake \
+        clang-format \
 	ninja-build \
 	binutils \
 	git \
