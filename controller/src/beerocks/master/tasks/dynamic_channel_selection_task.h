@@ -29,34 +29,28 @@ public:
                                    task_pool &tasks_, std::string radio_mac_);
     virtual ~dynamic_channel_selection_task() {}
 
-    typedef struct {
+    struct sTriggerSingleScan_event {
         sMacAddr radio_mac;
-    } sTriggerSingleScan_event;
-
-    typedef struct {
+    };
+    struct sScanTriggered_event {
         sMacAddr radio_mac;
-    } sScanTriggered_event;
-
-    typedef struct {
+    };
+    struct sScanResultsReady_event {
         sMacAddr radio_mac;
-    } sScanResultsReady_event;
-
-    typedef struct {
+    };
+    struct sScanResultsDump_event {
         sMacAddr radio_mac;
         sChannelScanResultsElement scan_results;
-    } sScanResultsDump_event;
-
-    typedef struct {
+    };
+    struct sScanFinished_event {
         sMacAddr radio_mac;
-    } sScanFinished_event;
-
-    typedef struct {
+    };
+    struct sScanAbort_event {
         sMacAddr radio_mac;
-    } sScanAbort_event;
-
-    typedef struct {
+    };
+    struct sScanEnableChange_event {
         sMacAddr radio_mac;
-    } sScanEnableChange_event;
+    };
 
 #define FOREACH_DCS_EVENT(EVENT)                                                                   \
     EVENT(INVALID_EVENT)                                                                           \
@@ -108,11 +102,21 @@ private:
     std::chrono::steady_clock::time_point m_next_scan_timestamp_interval;
     std::chrono::steady_clock::time_point m_last_scan_try_timestamp;
 
-    beerocks::eChannelScanErrCode m_last_scan_error_code = beerocks::eChannelScanErrCode::CHANNEL_SCAN_NO_ERROR;
-    eEvent m_dcs_waiting_for_event                   = eEvent::INVALID_EVENT;
+    beerocks::eChannelScanErrCode m_last_scan_error_code =
+        beerocks::eChannelScanErrCode::CHANNEL_SCAN_NO_ERROR;
+    eEvent m_dcs_waiting_for_event = eEvent::INVALID_EVENT;
 
     bool m_is_single_scan_pending = false;
     bool m_is_single_scan         = false;
+
+    void fsm_move_state(eState new_state)
+    {
+        TASK_LOG(TRACE) << "FSM: " << s_ar_states[int(m_fsm_state)] << " --> "
+                        << s_ar_states[int(new_state)];
+        m_fsm_state = new_state;
+    }
+
+    bool fsm_in_state(eState state) { return (m_fsm_state == state); }
 };
 } //namespace son
 #endif
